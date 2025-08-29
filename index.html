@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Тренажёр утверждений</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* CSS Variables for a cleaner look */
 :root {
@@ -250,8 +254,6 @@ canvas {
   color: var(--text-color);
 }
 </style>
-<link rel="apple-touch-icon" href="icon.png">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -598,6 +600,17 @@ function getLast7Days() {
     }
     return days;
 }
+
+// ====== PWA Service Worker Registration ======
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').then((registration) => {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      }, (err) => {
+        console.log('ServiceWorker registration failed: ', err);
+      });
+    });
+  }
 
 // ====== Инициализация ======
 function init() {
