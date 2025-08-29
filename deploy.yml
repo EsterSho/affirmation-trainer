@@ -1,0 +1,31 @@
+name: Deploy React App
+
+on:
+  push:
+    branches:
+      - main  # Запускать этот процесс, когда вы загружаете изменения в ветку main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest  # Использовать виртуальную машину на Linux для выполнения команд
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '18'  # Используем Node.js версии 18
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Build React App
+      run: npm run build
+
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@4.1.4
+      with:
+        branch: gh-pages  # Публикуем результат в ветку gh-pages
+        folder: build     # Берём готовые файлы из папки build, которую создала команда npm run build
