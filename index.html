@@ -24,6 +24,20 @@
   .ritual-line button { background:#ef4444; color:white; padding:2px 6px; font-size:12px; }
   input[type="file"] { font-size:12px; }
   canvas { width:100% !important; height:200px !important; background:#334155; border-radius:8px; margin-top:16px; }
+  .ritual-line { display:flex; gap:6px; align-items:flex-start; }
+.ritual-line textarea{
+  flex:1;
+  border:none;
+  background:transparent;
+  resize:vertical;       /* можно тянуть вниз пальцем */
+  overflow:hidden;       /* автоподгон высоты без полосы */
+  padding:6px;
+  font-size:14px;
+  line-height:1.4;
+  max-height:200px;      /* чтобы не разрасталась бесконечно */
+}
+.ritual-line textarea:focus{ outline:none; }
+  .modal-content{ -webkit-overflow-scrolling: touch; }
 </style>
 </head>
 <body>
@@ -178,19 +192,30 @@ function renderRitual(){
   const container = document.getElementById('ritual-text');
   container.innerHTML = ritualText.map((line,idx)=>`
     <div class="ritual-line">
-      <input type="text" value="${line}" data-idx="${idx}">
+      <textarea rows="1" class="ritual-textarea" data-idx="${idx}">${line}</textarea>
       <button data-idx="${idx}">✖</button>
     </div>
   `).join('');
-  container.querySelectorAll('input').forEach(inp=>{
-    inp.onchange = (e)=>{
-      const idx = e.target.dataset.idx;
-      ritualText[idx] = e.target.value;
-    };
+
+  // авто-высота для каждой textarea
+  const autosize = (el)=>{
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+  };
+
+  container.querySelectorAll('.ritual-textarea').forEach((ta)=>{
+    autosize(ta); // подгон при первом рендере
+    ta.addEventListener('input', (e)=>{
+      const i = +e.target.dataset.idx;
+      ritualText[i] = e.target.value; // сохраняем в массив
+      autosize(e.target);             // подгоняем высоту по содержимому
+    });
   });
+
+  // удаление строки
   container.querySelectorAll('button').forEach(btn=>{
     btn.onclick = (e)=>{
-      const idx = e.target.dataset.idx;
+      const idx = +e.target.dataset.idx;
       ritualText.splice(idx,1);
       renderRitual();
     };
@@ -265,3 +290,4 @@ renderChart();
 </script>
 </body>
 </html>
+
