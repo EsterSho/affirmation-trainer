@@ -8,7 +8,7 @@
   body { font-family: sans-serif; background: #1e293b; color: #f1f5f9; margin:0; padding:0; }
   .container { padding: 12px; max-width: 480px; margin: auto; }
   .affirmation { background: #334155; padding:10px 12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content: space-between; align-items:center; }
-  .affirm-text { flex:1; margin-right:8px; padding-top: 4px; }
+  .affirm-text { flex:1; margin-right:8px; }
   .affirm-count { font-size:12px; color:#94a3b8; text-align:right; }
   button { cursor:pointer; border:none; border-radius:6px; padding:6px 10px; font-size:14px; }
   .btn-green { background:#16a34a; color:white; }
@@ -29,12 +29,12 @@
   flex:1;
   border:none;
   background:transparent;
-  resize:vertical;
-  overflow:hidden;
+  resize:vertical;       /* можно тянуть вниз пальцем */
+  overflow:hidden;       /* автоподгон высоты без полосы */
   padding:6px;
   font-size:14px;
   line-height:1.4;
-  max-height:200px;
+  max-height:200px;      /* чтобы не разрасталась бесконечно */
 }
 .ritual-line textarea:focus{ outline:none; }
   .modal-content{ -webkit-overflow-scrolling: touch; }
@@ -62,7 +62,7 @@
     <button id="reset-day" class="btn-gray" style="width:100%;margin-bottom:12px;">Сброс дня</button>
 
     <canvas id="progressChart"></canvas>
-<div id="stats" style="margin-top:15px; font-size:14px; text-align:left; color:#f1f5f9;"></div>
+<div id="stats" style="margin-top:15px; font-size:14px; text-align:left; color:#333;"></div>
 </div>
 
 <div id="ritual-modal" class="modal" style="display:none;">
@@ -93,8 +93,7 @@ const STORAGE_KEYS = {
   SLIDE: 'affirm_trainer_slide_v1'
 };
 
-// Единая функция для создания ключа истории (YYYY-MM-DD)
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = () => new Date().toISOString().slice(0,10);
 
 // ====== Вечные утверждения ======
 const permanentAffirmations = [
@@ -113,6 +112,13 @@ function saveHistory(){ 
   renderChart();
 }
 
+function updateStats(){
+  const todaySum = history[todayKey()]?.reduce((a,b)=>a+b,0) || 0;
+  document.getElementById('today-count').innerText = todaySum + ' повторов';
+  const streak = Object.keys(history).filter(k=>history[k].some(v=>v>0)).length;
+  document.getElementById('streak-count').innerText = streak + ' дн.';
+}
+
 // ====== Рендер вечных утверждений ======
 function renderPermanent(){
   const container = document.getElementById('permanent-affirmations');
@@ -124,12 +130,65 @@ function renderPermanent(){
       <button class="btn-green" data-idx="${i}">✅</button>`;
     container.appendChild(div);
     div.querySelector('button').onclick = ()=>{
-      if(!history[todayKey()]) history[todayKey()] = Array(permanentAffirmations.length+editableAffirmations.length).fill(0);
       history[todayKey()][i]++;
       saveHistory();
       document.getElementById(`count-perm-${i}`).innerText = history[todayKey()][i];
     };
   });
+}
+
+function renderChart() {
+  const ctx = document.getElementById("progressChart").getContext("2d");
+  const last7 = getLast7Days();
+
+  // метки = дни недели
+  const labels = last7.map(d => d.toLocaleDateString("ru-RU", { weekday: "short" }));
+
+  // данные = повторы за день
+  const data = last7.map(d => {
+    let key = storageKey(d);
+    return (history[key] || []).reduce((a, b) => a + b, 0);
+  });
+
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Повторы за день",
+        data,
+        borderColor: "#16a34a",
+        backgroundColor: "#16a34a55",
+        fill: false,
+        tension: 0,                 // прямая линия
+        pointBackgroundColor: "#22c55e",
+        pointRadius: 6,
+        pointHoverRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1             // шаг = 1, видны все значения
+          },
+          title: { display: true, text: "Повторы" }
+        },
+        x: {
+          title: { display: true, text: "Дни недели" }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+
+  updateStats();
 }
 
 // ====== Редактируемые утверждения ======
@@ -153,7 +212,6 @@ function renderEditable(){
       localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(editableAffirmations));
     };
     div.querySelector('.btn-green').onclick = ()=>{
-      if(!history[todayKey()]) history[todayKey()] = Array(permanentAffirmations.length+editableAffirmations.length).fill(0);
       history[todayKey()][i+3] = (history[todayKey()][i+3]||0)+1;
       saveHistory();
       document.getElementById(`count-edit-${i}`).innerText = history[todayKey()][i+3];
@@ -186,20 +244,22 @@ function renderRitual(){
     </div>
   `).join('');
 
+  // авто-высота для каждой textarea
   const autosize = (el)=>{
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 200) + 'px';
   };
 
   container.querySelectorAll('.ritual-textarea').forEach((ta)=>{
-    autosize(ta);
+    autosize(ta); // подгон при первом рендере
     ta.addEventListener('input', (e)=>{
       const i = +e.target.dataset.idx;
-      ritualText[i] = e.target.value;
-      autosize(e.target);
+      ritualText[i] = e.target.value; // сохраняем в массив
+      autosize(e.target);             // подгоняем высоту по содержимому
     });
   });
 
+  // удаление строки
   container.querySelectorAll('button').forEach(btn=>{
     btn.onclick = (e)=>{
       const idx = +e.target.dataset.idx;
@@ -249,17 +309,23 @@ document.getElementById('clear-slide').onclick = ()=>{
 
 // ====== Сброс ======
 document.getElementById('reset-day').onclick = ()=>{
-  if(confirm('Вы уверены, что хотите сбросить прогресс за сегодня?')){
-    history[todayKey()] = Array(permanentAffirmations.length+editableAffirmations.length).fill(0);
-    saveHistory();
-    renderPermanent();
-    renderEditable();
-  }
+  history[todayKey()] = Array(permanentAffirmations.length+editableAffirmations.length).fill(0);
+  saveHistory();
+  renderPermanent();
+  renderEditable();
 };
 
 // ====== График прогресса ======
 let chart;
 
+function formatDate(date) {
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+function storageKey(date) {
+  return date.toLocaleDateString("ru-RU");
+}
+
+// последние 7 дней
 function getLast7Days() {
   let days = [];
   for (let i = 6; i >= 0; i--) {
@@ -270,75 +336,24 @@ function getLast7Days() {
   return days;
 }
 
-function renderChart() {
-  const ctx = document.getElementById("progressChart").getContext("2d");
-  const last7 = getLast7Days();
-
-  const labels = last7.map(d => d.toLocaleDateString("ru-RU", { weekday: "short" }));
-  const data = last7.map(d => {
-    const key = d.toISOString().slice(0, 10);
-    return (history[key] || []).reduce((a, b) => a + b, 0);
-  });
-
-  if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Повторы за день",
-        data,
-        borderColor: "#16a34a",
-        backgroundColor: "#16a34a55",
-        fill: false,
-        tension: 0,
-        pointBackgroundColor: "#22c55e",
-        pointRadius: 6,
-        pointHoverRadius: 8
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1
-          },
-          title: { display: true, text: "Повторы" }
-        },
-        x: {
-          title: { display: true, text: "Дни недели" }
-        }
-      },
-      plugins: {
-        legend: { display: false }
-      }
-    }
-  });
-}
-
 // 📊 Статистика под графиком
 function updateStats() {
-  const allDays = Object.keys(history);
-  const totals = allDays.map(k => (history[k] || []).reduce((a, b) => a + b, 0));
-  const total = totals.reduce((a, b) => a + b, 0);
+  let allDays = Object.keys(history);
+  let totals = allDays.map(k => (history[k] || []).reduce((a, b) => a + b, 0));
+  let total = totals.reduce((a, b) => a + b, 0);
 
-  const avg = (total / allDays.length) || 0;
-  const maxDay = Math.max(0, ...totals);
+  let avg = (total / allDays.length) || 0;
+  let maxDay = Math.max(0, ...totals);
 
-  // Подсчет серии (streak)
+  // streak (серия)
   let streak = 0;
   let d = new Date();
   while (true) {
-    const key = d.toISOString().slice(0, 10);
-    if (history[key] && history[key].some(v => v > 0)) {
+    let key = storageKey(d);
+    if (history[key] && history[key].length > 0) {
       streak++;
       d.setDate(d.getDate() - 1);
-    } else {
-      break;
-    }
+    } else break;
   }
 
   document.getElementById("stats").innerHTML = `
@@ -347,9 +362,6 @@ function updateStats() {
     🏆 Рекордный день: <b>${maxDay}</b><br>
     🔥 Серия дней подряд: <b>${streak}</b>
   `;
-  document.getElementById('streak-count').innerText = streak + ' дн.';
-  const todaySum = history[todayKey()]?.reduce((a,b)=>a+b,0) || 0;
-  document.getElementById('today-count').innerText = todaySum + ' повторов';
 }
 
 
