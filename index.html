@@ -5,371 +5,610 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Тренажёр утверждений</title>
 <style>
-  body { font-family: sans-serif; background: #1e293b; color: #f1f5f9; margin:0; padding:0; }
-  .container { padding: 12px; max-width: 480px; margin: auto; }
-  .affirmation { background: #334155; padding:10px 12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content: space-between; align-items:center; }
-  .affirm-text { flex:1; margin-right:8px; }
-  .affirm-count { font-size:12px; color:#94a3b8; text-align:right; }
-  button { cursor:pointer; border:none; border-radius:6px; padding:6px 10px; font-size:14px; }
-  .btn-green { background:#16a34a; color:white; }
-  .btn-green:hover { background:#15803d; }
-  .btn-gray { background:#475569; color:white; }
-  .stats { display:flex; justify-content:space-between; margin:12px 0; font-size:14px; }
-  .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; }
-  .modal-content { background:white; color:#1e293b; width:90%; max-width:400px; max-height:90%; overflow-y:auto; padding:12px; border-radius:10px; }
-  .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .modal textarea { width:100%; margin-bottom:6px; border-radius:6px; padding:4px; font-size:14px; }
-  .slide img { width:100%; border-radius:6px; margin-top:6px; }
-  .ritual-line { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; background:#f1f5f9; padding:4px 6px; border-radius:4px; }
-  .ritual-line button { background:#ef4444; color:white; padding:2px 6px; font-size:12px; }
-  input[type="file"] { font-size:12px; }
-  canvas { width:100% !important; height:200px !important; background:#334155; border-radius:8px; margin-top:16px; }
-  .ritual-line { display:flex; gap:6px; align-items:flex-start; }
-.ritual-line textarea{
-  flex:1;
-  border:none;
-  background:transparent;
-  resize:vertical;       /* можно тянуть вниз пальцем */
-  overflow:hidden;       /* автоподгон высоты без полосы */
-  padding:6px;
-  font-size:14px;
-  line-height:1.4;
-  max-height:200px;      /* чтобы не разрасталась бесконечно */
+/* CSS Variables for a cleaner look */
+:root {
+  --bg-color: #0f172a;
+  --card-bg-color: #1e293b;
+  --text-color: #f1f5f9;
+  --accent-color: #22d3ee;
+  --green-btn-color: #10b981;
+  --red-btn-color: #ef4444;
+  --gray-btn-color: #475569;
+  --border-radius: 12px;
+  --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
-.ritual-line textarea:focus{ outline:none; }
-  .modal-content{ -webkit-overflow-scrolling: touch; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-color);
+  color: var(--text-color);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+  padding: 24px 16px;
+  max-width: 500px;
+  margin: auto;
+}
+
+h1, h3 {
+  text-align: center;
+  font-weight: 600;
+  color: var(--accent-color);
+  text-shadow: var(--shadow);
+}
+
+.affirmation {
+  background: var(--card-bg-color);
+  padding: 16px;
+  border-radius: var(--border-radius);
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.affirmation:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+}
+
+.affirm-text {
+  flex: 1;
+  margin-right: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.affirm-count {
+  font-size: 14px;
+  color: #94a3b8;
+  text-align: right;
+  font-weight: 400;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow);
+}
+
+.btn-green {
+  background: var(--green-btn-color);
+  color: var(--text-color);
+}
+
+.btn-green:hover {
+  background: #0d9488;
+  transform: translateY(-1px);
+}
+
+.btn-gray {
+  background: var(--gray-btn-color);
+  color: var(--text-color);
+}
+
+.btn-gray:hover {
+  background: #334155;
+  transform: translateY(-1px);
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin: 24px 0 16px;
+  font-size: 16px;
+  background: var(--card-bg-color);
+  padding: 16px;
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+}
+
+.stats div {
+  text-align: center;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background: var(--card-bg-color);
+  color: var(--text-color);
+  width: 90%;
+  max-width: 450px;
+  max-height: 90%;
+  overflow-y: auto;
+  padding: 24px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  transform: scale(0.95);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal.open .modal-content {
+  transform: scale(1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.modal-header h3 {
+  margin: 0;
+}
+
+.modal textarea, .modal input[type="text"] {
+  width: 100%;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 16px;
+  background: #334155;
+  border: 1px solid #475569;
+  color: var(--text-color);
+}
+
+.slide img {
+  width: 100%;
+  border-radius: var(--border-radius);
+  margin-top: 12px;
+}
+
+.ritual-line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+  background: #334155;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.ritual-line textarea {
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: vertical;
+  overflow: hidden;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  max-height: 200px;
+  color: var(--text-color);
+}
+
+.ritual-line textarea:focus {
+  outline: none;
+}
+
+.ritual-line button {
+  background: var(--red-btn-color);
+  color: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+input[type="file"] {
+  font-size: 12px;
+  color: var(--text-color);
+  margin: 12px 0;
+}
+
+canvas {
+  width: 100% !important;
+  height: 250px !important;
+  background: var(--card-bg-color);
+  border-radius: var(--border-radius);
+  margin-top: 24px;
+}
+
+.stats-detailed {
+  margin-top: 24px;
+  font-size: 14px;
+  text-align: left;
+  color: #94a3b8;
+  background: var(--card-bg-color);
+  padding: 16px;
+  border-radius: var(--border-radius);
+}
+
+.stats-detailed b {
+  color: var(--text-color);
+}
 </style>
-  <link rel="apple-touch-icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
 <div class="container">
-  <h1 style="text-align:center;margin-bottom:12px;">Тренажёр утверждений</h1>
+    <h1>Тренажёр утверждений</h1>
 
-    <div class="stats">
-    <div>Сегодня: <span id="today-count">0 повторов</span></div>
-    <div>Стрик: <span id="streak-count">0 дн.</span></div>
-  </div>
+    <div class="stats">
+        <div>Сегодня: <span id="today-count">0 повторов</span></div>
+        <div>Стрик: <span id="streak-count">0 дн.</span></div>
+    </div>
 
-    <div id="permanent-affirmations"></div>
+    <div id="permanent-affirmations"></div>
 
-    <h3>Дополнительно</h3>
-  <div id="editable-affirmations"></div>
-  <button id="add-affirm" class="btn-gray" style="width:100%;margin-bottom:12px;">Добавить утверждение</button>
+    <h3>Дополнительно</h3>
+    <div id="editable-affirmations"></div>
+    <button id="add-affirm" class="btn-gray" style="width:100%;margin-bottom:12px;">Добавить утверждение</button>
 
-    <button id="open-ritual" class="btn-green" style="width:100%;margin-bottom:12px;">Ритуал</button>
+    <button id="open-ritual" class="btn-green" style="width:100%;margin-bottom:12px;">Ритуал</button>
 
-    <button id="reset-day" class="btn-gray" style="width:100%;margin-bottom:12px;">Сброс дня</button>
+    <button id="reset-day" class="btn-gray" style="width:100%;margin-bottom:12px;">Сброс дня</button>
 
-    <canvas id="progressChart"></canvas>
-<div id="stats" style="margin-top:15px; font-size:14px; text-align:left; color:#333;"></div>
+    <canvas id="progressChart"></canvas>
+    <div id="stats-detailed" class="stats-detailed"></div>
 </div>
 
-<div id="ritual-modal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>Ритуал</h3>
-      <button id="close-ritual">✖</button>
-    </div>
+<div id="ritual-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Ритуал</h3>
+            <button id="close-ritual" class="btn-gray">✖</button>
+        </div>
 
-        <div class="slide" id="ritual-slide"></div>
-    <input type="file" id="upload-slide">
-    <button id="clear-slide" class="btn-gray" style="width:100%;margin:6px 0;">Очистить слайд</button>
+        <div class="slide" id="ritual-slide"></div>
+        <input type="file" id="upload-slide" accept="image/*">
+        <button id="clear-slide" class="btn-gray" style="width:100%;margin:6px 0;">Очистить слайд</button>
 
-        <div id="ritual-text"></div>
-    <input type="text" id="new-ritual-line" placeholder="Новая строка">
-    <button id="add-ritual-line" class="btn-green" style="width:100%;margin:6px 0;">Добавить строку</button>
-    <button id="save-ritual" class="btn-green" style="width:100%;margin-bottom:6px;">Сохранить ритуал</button>
-  </div>
+        <div id="ritual-text"></div>
+        <input type="text" id="new-ritual-line" placeholder="Новая строка">
+        <button id="add-ritual-line" class="btn-green" style="width:100%;margin:6px 0;">Добавить строку</button>
+        <button id="save-ritual" class="btn-green" style="width:100%;margin-bottom:6px;">Сохранить ритуал</button>
+    </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 // ====== Настройки ======
 const STORAGE_KEYS = {
-  AFF: 'affirm_trainer_affirmations_v1',
-  HISTORY: 'affirm_trainer_history_v1',
-  RITUAL: 'affirm_trainer_ritual_v1',
-  SLIDE: 'affirm_trainer_slide_v1'
+    AFF: 'affirm_trainer_affirmations_v2',
+    HISTORY: 'affirm_trainer_history_v2',
+    RITUAL: 'affirm_trainer_ritual_v2',
+    SLIDE: 'affirm_trainer_slide_v2'
 };
 
-const todayKey = () => new Date().toISOString().slice(0,10);
+const todayKey = () => new Date().toISOString().slice(0, 10);
+const storageKey = (date) => date.toISOString().slice(0, 10);
 
 // ====== Вечные утверждения ======
 const permanentAffirmations = [
-  "Моё тело обновляется и исцеляется. Я молод, силён и полон энергии.",
-  "Я живу в изобилии и любви Вселенной. Все ресурсы доступны мне.",
-  "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время."
+    "Моё тело обновляется и исцеляется. Я молод, силён и полон энергии.",
+    "Я живу в изобилии и любви Вселенной. Все ресурсы доступны мне.",
+    "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время."
 ];
 
-// ====== Загрузка истории ======
-let history = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY)||'{}');
-if(!history[todayKey()]) history[todayKey()] = Array(permanentAffirmations.length).fill(0);
+// ====== Загрузка истории и утверждений ======
+let history = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || '{}');
+let editableAffirmations = JSON.parse(localStorage.getItem(STORAGE_KEYS.AFF) || '[]');
+let ritualText = JSON.parse(localStorage.getItem(STORAGE_KEYS.RITUAL) || '[]');
 
-function saveHistory(){ 
-  localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history)); 
-  updateStats(); 
-  renderChart();
+if (!history[todayKey()]) {
+    history[todayKey()] = new Array(permanentAffirmations.length + editableAffirmations.length).fill(0);
 }
 
-function updateStats(){
-  const todaySum = history[todayKey()]?.reduce((a,b)=>a+b,0) || 0;
-  document.getElementById('today-count').innerText = todaySum + ' повторов';
-  const streak = Object.keys(history).filter(k=>history[k].some(v=>v>0)).length;
-  document.getElementById('streak-count').innerText = streak + ' дн.';
+function saveToLocalStorage(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
+function saveAll() {
+    saveToLocalStorage(STORAGE_KEYS.HISTORY, history);
+    saveToLocalStorage(STORAGE_KEYS.AFF, editableAffirmations);
+    saveToLocalStorage(STORAGE_KEYS.RITUAL, ritualText);
+    updateStats();
+    renderChart();
 }
 
 // ====== Рендер вечных утверждений ======
-function renderPermanent(){
-  const container = document.getElementById('permanent-affirmations');
-  container.innerHTML='';
-  permanentAffirmations.forEach((text,i)=>{
-    const div = document.createElement('div');
-    div.className='affirmation';
-    div.innerHTML = `<div class="affirm-text">${text}<div class="affirm-count" id="count-perm-${i}">${history[todayKey()][i]}</div></div>
-      <button class="btn-green" data-idx="${i}">✅</button>`;
-    container.appendChild(div);
-    div.querySelector('button').onclick = ()=>{
-      history[todayKey()][i]++;
-      saveHistory();
-      document.getElementById(`count-perm-${i}`).innerText = history[todayKey()][i];
-    };
-  });
+function renderPermanent() {
+    const container = document.getElementById('permanent-affirmations');
+    container.innerHTML = '';
+    permanentAffirmations.forEach((text, i) => {
+        const div = document.createElement('div');
+        div.className = 'affirmation';
+        div.innerHTML = `
+            <div class="affirm-text">${text}<div class="affirm-count" id="count-perm-${i}">${history[todayKey()][i]}</div></div>
+            <button class="btn-green" data-index="${i}">✅</button>
+        `;
+        container.appendChild(div);
+        div.querySelector('button').addEventListener('click', () => {
+            history[todayKey()][i]++;
+            saveAll();
+            document.getElementById(`count-perm-${i}`).innerText = history[todayKey()][i];
+        });
+    });
 }
 
-function renderChart() {
-  const ctx = document.getElementById("progressChart").getContext("2d");
-  const last7 = getLast7Days();
+// ====== Рендер редактируемых утверждений ======
+function renderEditable() {
+    const container = document.getElementById('editable-affirmations');
+    container.innerHTML = '';
+    const permCount = permanentAffirmations.length;
+    editableAffirmations.forEach((text, i) => {
+        const div = document.createElement('div');
+        div.className = 'affirmation';
+        div.innerHTML = `
+            <input type="text" value="${text}" class="affirm-text">
+            <div style="display:flex; flex-direction:column;align-items:flex-end;">
+                <div class="affirm-count" id="count-edit-${i}">${history[todayKey()][i + permCount] || 0}</div>
+                <button class="btn-green" data-index="${i + permCount}">✅</button>
+                <button class="btn-gray remove-affirm" data-index="${i}">✖</button>
+            </div>
+        `;
+        container.appendChild(div);
 
-  // метки = дни недели
-  const labels = last7.map(d => d.toLocaleDateString("ru-RU", { weekday: "short" }));
+        div.querySelector('input').addEventListener('change', (e) => {
+            editableAffirmations[i] = e.target.value;
+            saveAll();
+        });
 
-  // данные = повторы за день
-  const data = last7.map(d => {
-    let key = storageKey(d);
-    return (history[key] || []).reduce((a, b) => a + b, 0);
-  });
+        div.querySelector('.btn-green').addEventListener('click', (e) => {
+            const index = i + permCount;
+            if (!history[todayKey()]) {
+                history[todayKey()] = new Array(permCount + editableAffirmations.length).fill(0);
+            }
+            history[todayKey()][index] = (history[todayKey()][index] || 0) + 1;
+            saveAll();
+            document.getElementById(`count-edit-${i}`).innerText = history[todayKey()][index];
+        });
 
-  if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Повторы за день",
-        data,
-        borderColor: "#16a34a",
-        backgroundColor: "#16a34a55",
-        fill: false,
-        tension: 0,                 // прямая линия
-        pointBackgroundColor: "#22c55e",
-        pointRadius: 6,
-        pointHoverRadius: 8
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1             // шаг = 1, видны все значения
-          },
-          title: { display: true, text: "Повторы" }
-        },
-        x: {
-          title: { display: true, text: "Дни недели" }
-        }
-      },
-      plugins: {
-        legend: { display: false }
-      }
-    }
-  });
-
-  updateStats();
+        div.querySelector('.remove-affirm').addEventListener('click', () => {
+            editableAffirmations.splice(i, 1);
+            if (history[todayKey()]) {
+                history[todayKey()].splice(i + permCount, 1);
+            }
+            saveAll();
+            renderEditable();
+        });
+    });
 }
 
-// ====== Редактируемые утверждения ======
-let editableAffirmations = JSON.parse(localStorage.getItem(STORAGE_KEYS.AFF)||'[]');
-function renderEditable(){
-  const container = document.getElementById('editable-affirmations');
-  container.innerHTML='';
-  editableAffirmations.forEach((text,i)=>{
-    const div = document.createElement('div');
-    div.className='affirmation';
-    div.innerHTML = `<input type="text" value="${text}" class="affirm-text">
-      <div style="display:flex; flex-direction:column;align-items:flex-end;">
-        <div class="affirm-count" id="count-edit-${i}">${history[todayKey()][i+3]||0}</div>
-        <button class="btn-green" data-idx="${i}">✅</button>
-        <button class="btn-gray remove-affirm" data-idx="${i}">✖</button>
-      </div>`;
-    container.appendChild(div);
-
-    div.querySelector('.affirm-text').onchange = (e)=>{
-      editableAffirmations[i] = e.target.value;
-      localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(editableAffirmations));
-    };
-    div.querySelector('.btn-green').onclick = ()=>{
-      history[todayKey()][i+3] = (history[todayKey()][i+3]||0)+1;
-      saveHistory();
-      document.getElementById(`count-edit-${i}`).innerText = history[todayKey()][i+3];
-    };
-    div.querySelector('.remove-affirm').onclick = ()=>{
-      editableAffirmations.splice(i,1);
-      localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(editableAffirmations));
-      renderEditable();
-    };
-  });
-}
-
-document.getElementById('add-affirm').onclick = ()=>{
-  editableAffirmations.push('Новое утверждение');
-  localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(editableAffirmations));
-  if(!history[todayKey()]) history[todayKey()] = [];
-  history[todayKey()].push(0);
-  saveHistory();
-  renderEditable();
-};
+document.getElementById('add-affirm').addEventListener('click', () => {
+    editableAffirmations.push('Новое утверждение');
+    if (!history[todayKey()]) history[todayKey()] = [];
+    history[todayKey()].push(0);
+    saveAll();
+    renderEditable();
+});
 
 // ====== Ритуал ======
-let ritualText = JSON.parse(localStorage.getItem(STORAGE_KEYS.RITUAL)||'[]');
-function renderRitual(){
-  const container = document.getElementById('ritual-text');
-  container.innerHTML = ritualText.map((line,idx)=>`
-    <div class="ritual-line">
-      <textarea rows="1" class="ritual-textarea" data-idx="${idx}">${line}</textarea>
-      <button data-idx="${idx}">✖</button>
-    </div>
-  `).join('');
+function renderRitual() {
+    const container = document.getElementById('ritual-text');
+    container.innerHTML = ritualText.map((line, idx) => `
+        <div class="ritual-line">
+            <textarea rows="1" class="ritual-textarea" data-idx="${idx}">${line}</textarea>
+            <button data-idx="${idx}">✖</button>
+        </div>
+    `).join('');
 
-  // авто-высота для каждой textarea
-  const autosize = (el)=>{
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
-  };
+    const autosize = (el) => {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    };
 
-  container.querySelectorAll('.ritual-textarea').forEach((ta)=>{
-    autosize(ta); // подгон при первом рендере
-    ta.addEventListener('input', (e)=>{
-      const i = +e.target.dataset.idx;
-      ritualText[i] = e.target.value; // сохраняем в массив
-      autosize(e.target);             // подгоняем высоту по содержимому
-    });
-  });
+    container.querySelectorAll('.ritual-textarea').forEach((ta) => {
+        autosize(ta);
+        ta.addEventListener('input', (e) => {
+            const i = +e.target.dataset.idx;
+            ritualText[i] = e.target.value;
+            autosize(e.target);
+        });
+    });
 
-  // удаление строки
-  container.querySelectorAll('button').forEach(btn=>{
-    btn.onclick = (e)=>{
-      const idx = +e.target.dataset.idx;
-      ritualText.splice(idx,1);
-      renderRitual();
-    };
-  });
+    container.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const idx = +e.target.dataset.idx;
+            ritualText.splice(idx, 1);
+            renderRitual();
+        });
+    });
 }
 
-document.getElementById('add-ritual-line').onclick = ()=>{
-  const val = document.getElementById('new-ritual-line').value.trim();
-  if(val){ ritualText.push(val); document.getElementById('new-ritual-line').value=''; renderRitual(); }
-};
+document.getElementById('add-ritual-line').addEventListener('click', () => {
+    const val = document.getElementById('new-ritual-line').value.trim();
+    if (val) {
+        ritualText.push(val);
+        document.getElementById('new-ritual-line').value = '';
+        renderRitual();
+    }
+});
 
-document.getElementById('save-ritual').onclick = ()=>{
-  localStorage.setItem(STORAGE_KEYS.RITUAL, JSON.stringify(ritualText));
-  alert('Ритуал сохранён!');
-};
+document.getElementById('save-ritual').addEventListener('click', () => {
+    saveToLocalStorage(STORAGE_KEYS.RITUAL, ritualText);
+    alert('Ритуал сохранён!');
+});
 
-document.getElementById('open-ritual').onclick = ()=>{
-  document.getElementById('ritual-modal').style.display='flex';
-  renderRitual();
-  const slide = localStorage.getItem(STORAGE_KEYS.SLIDE);
-  if(slide) document.getElementById('ritual-slide').innerHTML = `<img src="${slide}">`;
-};
+document.getElementById('open-ritual').addEventListener('click', () => {
+    document.getElementById('ritual-modal').classList.add('open');
+    renderRitual();
+    const slide = localStorage.getItem(STORAGE_KEYS.SLIDE);
+    if (slide) document.getElementById('ritual-slide').innerHTML = `<img src="${slide}">`;
+});
 
-document.getElementById('close-ritual').onclick = ()=>{
-  document.getElementById('ritual-modal').style.display='none';
-};
+document.getElementById('close-ritual').addEventListener('click', () => {
+    document.getElementById('ritual-modal').classList.remove('open');
+});
 
 // ====== Слайд ======
-document.getElementById('upload-slide').onchange = (e)=>{
-  const file = e.target.files[0];
-  if(file){
-    const reader = new FileReader();
-    reader.onload = function(evt){
-      localStorage.setItem(STORAGE_KEYS.SLIDE, evt.target.result);
-      document.getElementById('ritual-slide').innerHTML = `<img src="${evt.target.result}">`;
-    };
-    reader.readAsDataURL(file);
-  }
-};
-document.getElementById('clear-slide').onclick = ()=>{
-  localStorage.removeItem(STORAGE_KEYS.SLIDE);
-  document.getElementById('ritual-slide').innerHTML='';
-};
+document.getElementById('upload-slide').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            localStorage.setItem(STORAGE_KEYS.SLIDE, evt.target.result);
+            document.getElementById('ritual-slide').innerHTML = `<img src="${evt.target.result}">`;
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+document.getElementById('clear-slide').addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_KEYS.SLIDE);
+    document.getElementById('ritual-slide').innerHTML = '';
+});
 
 // ====== Сброс ======
-document.getElementById('reset-day').onclick = ()=>{
-  history[todayKey()] = Array(permanentAffirmations.length+editableAffirmations.length).fill(0);
-  saveHistory();
-  renderPermanent();
-  renderEditable();
-};
+document.getElementById('reset-day').addEventListener('click', () => {
+    history[todayKey()] = new Array(permanentAffirmations.length + editableAffirmations.length).fill(0);
+    saveAll();
+    renderPermanent();
+    renderEditable();
+});
 
 // ====== График прогресса ======
-let chart;
+let chartInstance;
 
-function formatDate(date) {
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-}
-function storageKey(date) {
-  return date.toLocaleDateString("ru-RU");
+function renderChart() {
+    const ctx = document.getElementById("progressChart").getContext("2d");
+    const last7 = getLast7Days();
+    const labels = last7.map(d => d.toLocaleDateString("ru-RU", { weekday: "short" }));
+    const data = last7.map(d => (history[storageKey(d)] || []).reduce((a, b) => a + b, 0));
+
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    chartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels,
+            datasets: [{
+                label: "Повторы за день",
+                data,
+                borderColor: 'var(--accent-color)',
+                backgroundColor: 'rgba(34, 211, 238, 0.2)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: 'var(--accent-color)',
+                pointRadius: 6,
+                pointHoverRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: 'var(--text-color)',
+                        stepSize: 1
+                    },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                },
+                x: {
+                    ticks: { color: 'var(--text-color)' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.7)',
+                    titleColor: 'var(--text-color)',
+                    bodyColor: 'var(--text-color)',
+                    borderColor: 'var(--accent-color)',
+                    borderWidth: 1,
+                    cornerRadius: 8
+                }
+            }
+        }
+    });
 }
 
-// последние 7 дней
-function getLast7Days() {
-  let days = [];
-  for (let i = 6; i >= 0; i--) {
-    let d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d);
-  }
-  return days;
-}
-
-// 📊 Статистика под графиком
 function updateStats() {
-  let allDays = Object.keys(history);
-  let totals = allDays.map(k => (history[k] || []).reduce((a, b) => a + b, 0));
-  let total = totals.reduce((a, b) => a + b, 0);
+    const todaySum = history[todayKey()]?.reduce((a, b) => a + b, 0) || 0;
+    document.getElementById('today-count').innerText = `${todaySum} повторов`;
 
-  let avg = (total / allDays.length) || 0;
-  let maxDay = Math.max(0, ...totals);
+    let total = 0;
+    let maxDay = 0;
+    let daysWithData = Object.keys(history).filter(k => history[k]?.some(v => v > 0));
+    let totalDays = daysWithData.length;
+    let streak = 0;
+    let currentDate = new Date();
+    currentDate.setHours(0, 0, 0, 0);
 
-  // streak (серия)
-  let streak = 0;
-  let d = new Date();
-  while (true) {
-    let key = storageKey(d);
-    if (history[key] && history[key].length > 0) {
-      streak++;
-      d.setDate(d.getDate() - 1);
-    } else break;
-  }
+    while (true) {
+        const key = storageKey(currentDate);
+        if (history[key] && history[key].some(v => v > 0)) {
+            streak++;
+            currentDate.setDate(currentDate.getDate() - 1);
+        } else break;
+    }
 
-  document.getElementById("stats").innerHTML = `
-    🔢 Всего повторов: <b>${total}</b><br>
-    📊 Среднее в день: <b>${avg.toFixed(1)}</b><br>
-    🏆 Рекордный день: <b>${maxDay}</b><br>
-    🔥 Серия дней подряд: <b>${streak}</b>
-  `;
+    for (const key in history) {
+        const dayTotal = history[key].reduce((a, b) => a + b, 0);
+        total += dayTotal;
+        if (dayTotal > maxDay) maxDay = dayTotal;
+    }
+
+    const avg = totalDays > 0 ? (total / totalDays) : 0;
+    document.getElementById('streak-count').innerText = `${streak} дн.`;
+    document.getElementById("stats-detailed").innerHTML = `
+        🔢 Всего повторов: <b>${total}</b><br>
+        📊 Среднее в день: <b>${avg.toFixed(1)}</b><br>
+        🏆 Рекордный день: <b>${maxDay}</b><br>
+        🔥 Серия дней подряд: <b>${streak}</b>
+    `;
 }
 
+function getLast7Days() {
+    let days = [];
+    for (let i = 6; i >= 0; i--) {
+        let d = new Date();
+        d.setDate(d.getDate() - i);
+        days.push(d);
+    }
+    return days;
+}
 
 // ====== Инициализация ======
-renderPermanent();
-renderEditable();
-updateStats();
-renderChart();
+function init() {
+    renderPermanent();
+    renderEditable();
+    updateStats();
+    renderChart();
+}
+
+init();
 </script>
+
 </body>
 </html>
