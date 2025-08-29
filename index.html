@@ -68,6 +68,7 @@
 
   <!-- График прогресса -->
   <canvas id="progressChart"></canvas>
+<div id="stats" style="margin-top:15px; font-size:14px; text-align:left; color:#333;"></div>
 </div>
 
 <!-- Модальное окно ритуала -->
@@ -271,16 +272,96 @@ document.getElementById('reset-day').onclick = ()=>{
 
 // ====== График прогресса ======
 let chart;
+
+function formatDate(date) {
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+function storageKey(date) {
+  return date.toLocaleDateString("ru-RU");
+}
+
+// последние 7 дней
+function getLast7Days() {
+  let days = [];
+  for (let i = 6; i >= 0; i--) {
+    let d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  return days;
+}
+
 function renderChart(){
-  const ctx = document.getElementById('progressChart').getContext('2d');
-  const labels = Object.keys(history).sort();
-  const data = labels.map(k => (history[k]||[]).reduce((a,b)=>a+b,0));
+  const ctx = document.getElementById("progressChart").getContext("2d");
+  const last7 = getLast7Days();
+
+  // собираем данные за последние 7 дней
+  const labels = last7.map(d => formatDate(d));
+  const data = last7.map(d => {
+    let key = storageKey(d);
+    return (history[key] || []).reduce((a,b)=>a+b,0);
+  });
+
   if(chart) chart.destroy();
   chart = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets: [{ label:'Повторы', data, borderColor:'#16a34a', backgroundColor:'#16a34a55', fill:true, tension:0.3 }]},
-    options: { scales: { y: { beginAtZero:true } } }
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Повторы за день",
+        data,
+        borderColor: "#16a34a",
+        backgroundColor: "#16a34a55",
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: "#15803d",
+        pointRadius: 5
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: "Повторы" }
+        },
+        x: {
+          title: { display: true, text: "Последние 7 дней" }
+        }
+      }
+    }
   });
+
+  updateStats();
+}
+
+// 📊 Статистика под графиком
+function updateStats() {
+  let allDays = Object.keys(history);
+  let totals = allDays.map(k => (history[k]||[]).reduce((a,b)=>a+b,0));
+  let total = totals.reduce((a,b)=>a+b,0);
+
+  let avg = (total / allDays.length) || 0;
+  let maxDay = Math.max(0, ...totals);
+
+  // streak (серия)
+  let streak = 0;
+  let d = new Date();
+  while (true) {
+    let key = storageKey(d);
+    if (history[key] && history[key].length > 0) {
+      streak++;
+      d.setDate(d.getDate() - 1);
+    } else break;
+  }
+
+  document.getElementById("stats").innerHTML = `
+    🔢 Всего повторов: <b>${total}</b><br>
+    📊 Среднее в день: <b>${avg.toFixed(1)}</b><br>
+    🏆 Рекордный день: <b>${maxDay}</b><br>
+    🔥 Серия дней подряд: <b>${streak}</b>
+  `;
 }
 
 // ====== Инициализация ======
@@ -291,5 +372,6 @@ renderChart();
 </script>
 </body>
 </html>
+
 
 
