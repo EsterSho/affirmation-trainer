@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренажёр Утверждений</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Дополнительные стили, если нужны */
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100">
+
+    <div id="root"></div>
+
+    <script type="text/javascript">
+        // SERVICE WORKER & MANIFEST.JSON
+        const CACHE_NAME = 'affirmation-trainer-cache-v1';
+        const urlsToCache = [
+            '/',
+            'index.html',
+            'manifest.json',
+            'icon-192.png',
+            'icon-512.png',
+            'https://cdn.tailwindcss.com'
+        ];
+
+        self.addEventListener('install', (event) => {
+            console.log('SW installing...');
+            event.waitUntil(
+                caches.open(CACHE_NAME)
+                    .then((cache) => {
+                        console.log('SW caching app shell');
+                        return cache.addAll(urlsToCache);
+                    })
+            );
+        });
+
+        self.addEventListener('fetch', (event) => {
+            event.respondWith(
+                caches.match(event.request)
+                    .then((response) => {
+                        if (response) {
+                            return response;
+                        }
+                        return fetch(event.request);
+                    })
+            );
+        });
+    </script>
+    
+    <script type="text/javascript">
+        const { useState, useEffect, useRef } = React;
+
+        const STORAGE_KEYS = {
+            AFF: "affirm_trainer_affirmations_v1",
+            HISTORY: "affirm_trainer_history_v1",
+            LAST_DAY: "affirm_trainer_lastday_v1",
+            SETTINGS: "affirm_trainer_settings_v1",
+        };
+
+        const DEFAULT_AFFIRMATIONS = [
+            "Моё тело обновляется и исцеляется. Я молод, силён и полон энергии.",
+            "Я живу в изобилии и любви Вселенной. Все ресурсы доступны мне.",
+            "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время.",
+        ];
+
+        function todayKey() {
+            const d = new Date();
+            return d.toISOString().slice(0, 10); // YYYY-MM-DD
+        }
+
+        function loadJSON(key, fallback) {
+            try {
+                const raw = localStorage.getItem(key);
+                return raw ? JSON.parse(raw) : fallback;
+            } catch (e) {
+                return fallback;
+            }
+        }
+
+        function saveJSON(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {
+                console.warn("Save failed", e);
+            }
+        }
+
+        function AffirmationTrainer() {
+            const [affirmations, setAffirmations] = useState(() => loadJSON(STORAGE_KEYS.AFF, DEFAULT_AFFIRMATIONS));
+            const [history, setHistory] = useState(() => loadJSON(STORAGE_KEYS.HISTORY, {}));
+            const [lastDay, setLastDay] = useState(() => loadJSON(STORAGE_KEYS.LAST_DAY, { day: todayKey() }));
+            const [settings, setSettings] = useState(() => loadJSON(STORAGE_KEYS.SETTINGS, { voice: true }));
+
+            const [today, setToday] = useState(todayKey());
+            const [counts, setCounts] = useState(() => {
+                const h = loadJSON(STORAGE_KEYS.HISTORY, {});
+                const t = todayKey();
+                return h[t] || [0, 0, 0];
+            });
+
+            const [showRitual, setShowRitual] = useState(false);
+            const [showHelp, setShowHelp] = useState(false);
+            const [editMode, setEditMode] = useState(false);
+            const [slideImage, setSlideImage] = useState(() => loadJSON('slide_image_data', null));
+
+            const synthRef = useRef(window.speechSynthesis);
+            const recordingRef = useRef(null);
+            const mediaRecorderRef = useRef(null);
+            const recordedChunksRef = useRef([]);
+
+            // Ensure daily rollover
+            useEffect(() => {
+                const interval = setInterval(() => {
+                    const tk = todayKey();
+                    if (tk !== today) {
+                        // new day
+                        setToday(tk);
+                        const newHist = { ...history };
+                        newHist[tk] = newHist[tk] || [0, 0, 0];
+                        setHistory(newHist);
+                        setCounts(newHist[tk]);
+                        saveJSON(STORAGE_KEYS.HISTORY, newHist);
+                        saveJSON(STORAGE_KEYS.LAST_DAY, { day: tk });
+                    }
+                }, 1000 * 30);
+                return () => clearInterval(interval);
+            }, [today, history]);
+
+            useEffect(() => {
+                saveJSON(STORAGE_KEYS.AFF, affirmations);
+            }, [affirmations]);
+
+            useEffect(() => {
+                // initialize today's slot if missing
+                const t = todayKey();
+                const newHist = { ...history };
+                if (!newHist[t]) newHist[t] = [0, 0, 0];
+                setHistory(newHist);
+                setCounts(newHist[t]);
+                saveJSON(STORAGE_KEYS.HISTORY, newHist);
+            }, []);
+
+            useEffect(() => {
+                saveJSON(STORAGE_KEYS.HISTORY, history);
+            }, [history]);
+
+            useEffect(() => {
+                saveJSON(STORAGE_KEYS.SETTINGS, settings);
+            }, [settings]);
+
+            function increment(idx) {
+                const t = todayKey();
+                const newHist = { ...history };
+                newHist[t] = newHist[t] || [0, 0, 0];
+                newHist[t][idx] = (newHist[t][idx] || 0) + 1;
+                setHistory(newHist);
+                setCounts(newHist[t]);
+                saveJSON(STORAGE_KEYS.HISTORY, newHist);
+            }
+
+            function resetToday() {
+                const t = todayKey();
+                const newHist = { ...history };
+                newHist[t] = [0, 0, 0];
+                setHistory(newHist);
+                setCounts([0, 0, 0]);
+                saveJSON(STORAGE_KEYS.HISTORY, newHist);
+            }
+
+            function quickSpeak(text) {
+                if (!settings.voice) return;
+                if (!synthRef.current) return;
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = "ru-RU";
+                utter.rate = 0.95;
+                synthRef.current.cancel();
+                synthRef.current.speak(utter);
+            }
+
+            function downloadHistory() {
+                const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `affirm_history_${todayKey()}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function lastNDaysArray(n = 30) {
+                const arr = [];
+                for (let i = n - 1; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const key = d.toISOString().slice(0, 10);
+                    arr.push({ key, counts: history[key] || [0, 0, 0] });
+                }
+                return arr;
+            }
+
+            // simple streak calculation: how many consecutive days (including today) with at least 1 total
+            function calcStreak() {
+                let streak = 0;
+                const arr = lastNDaysArray(90).reverse(); // from today backwards
+                for (const day of arr) {
+                    const sum = (day.counts || [0, 0, 0]).reduce((a, b) => a + b, 0);
+                    if (sum > 0) streak++;
+                    else break;
+                }
+                return streak;
+            }
+
+            // Recording (optional)
+            async function startRecording() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorderRef.current = new MediaRecorder(stream);
+                    recordedChunksRef.current = [];
+                    mediaRecorderRef.current.ondataavailable = (e) => recordedChunksRef.current.push(e.data);
+                    mediaRecorderRef.current.onstop = () => {
+                        const blob = new Blob(recordedChunksRef.current, { type: "audio/webm" });
+                        const url = URL.createObjectURL(blob);
+                        recordingRef.current = { blob, url };
+                        // store small data pointer in localStorage (not blob) — user can export
+                        saveJSON("last_recording_meta", { date: new Date().toISOString() });
+                    };
+                    mediaRecorderRef.current.start();
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+
+            function stopRecording() {
+                if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+                    mediaRecorderRef.current.stop();
+                }
+            }
+
+            // PWA service worker registration helper; requires service-worker.js in public root
+            useEffect(() => {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('service-worker.js').then(() => {
+                        // registered
+                    }).catch(() => {
+                        // ignore
+                    });
+                }
+            }, []);
+
+            return (
+                <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-slate-100 p-4">
+                    <header className="flex items-center justify-between mb-4">
+                        <div>
+                            <h1 className="text-2xl font-bold">Тренажёр утверждений</h1>
+                            <p className="text-sm text-slate-300">3 вечных утверждения · оффлайн · ритуал силы</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button className="bg-slate-700 px-3 py-2 rounded" onClick={() => setShowHelp(true)}>?</button>
+                            <button className="bg-emerald-600 px-3 py-2 rounded" onClick={() => setShowRitual(true)}>Ритуал</button>
+                        </div>
+                    </header>
+
+                    <main className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <section className="bg-slate-700 rounded p-4">
+                            <div className="flex justify-between items-start">
+                                <h2 className="font-semibold">Твои 3 утверждения</h2>
+                                <div className="flex gap-2">
+                                    <button className="px-2 py-1 bg-slate-600 rounded" onClick={() => setEditMode(!editMode)}>{editMode ? 'Готово' : 'Ред.'}</button>
+                                    <button className="px-2 py-1 bg-slate-600 rounded" onClick={() => { setAffirmations(DEFAULT_AFFIRMATIONS); setEditMode(false); }}>Сброс</button>
+                                </div>
+                            </div>
+
+                            <div className="mt-3 space-y-3">
+                                {affirmations.map((a, i) => (
+                                    <div key={i} className="bg-slate-800 p-3 rounded flex gap-3 items-center">
+                                        <div className="flex-1">
+                                            {editMode ? (
+                                                <textarea className="w-full bg-transparent resize-none" rows={2} value={a} onChange={(e) => {
+                                                    const copy = [...affirmations]; copy[i] = e.target.value; setAffirmations(copy);
+                                                }} />
+                                            ) : (
+                                                <div className="leading-tight">{a}</div>
+                                            )}
+                                            <div className="text-xs text-slate-400 mt-1">Сколько раз сегодня: {(history[todayKey()] || [0, 0, 0])[i] || 0}</div>
+                                        </div>
+
+                                        <div className="flex flex-col items-center gap-2">
+                                            <button title="Повторил" className="bg-emerald-500 hover:bg-emerald-600 rounded-full w-12 h-12 flex items-center justify-center font-bold" onClick={() => { increment(i); quickSpeak(a); }}>✅</button>
+                                            <button title="Говорит голос" className="px-2 py-1 bg-slate-600 rounded text-xs" onClick={() => quickSpeak(a)}>▶</button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 flex gap-2">
+                                <button className="bg-indigo-600 px-3 py-2 rounded" onClick={() => { // quick 3x ritual
+                                    affirmations.forEach((a, idx) => { increment(idx); });
+                                }}>Быстрый ритуал (3×)</button>
+                                <button className="bg-slate-600 px-3 py-2 rounded" onClick={() => resetToday()}>Сброс дня</button>
+                            </div>
+
+                        </section>
+
+                        <section className="bg-slate-700 rounded p-4">
+                            <h3 className="font-semibold">Прогресс</h3>
+                            <div className="mt-3 flex flex-col gap-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <div className="text-sm text-slate-300">Сегодня</div>
+                                        <div className="text-lg font-bold">{counts.reduce((a, b) => a + b, 0)} повторов</div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-sm text-slate-300">Стрик</div>
+                                        <div className="text-lg font-bold">{calcStreak()} дн.</div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-800 p-3 rounded">
+                                    <h4 className="text-sm text-slate-300 mb-2">Последние 30 дней</h4>
+                                    <MiniBarChart data={lastNDaysArray(30)} />
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <button className="bg-slate-600 px-3 py-2 rounded" onClick={() => downloadHistory()}>Экспорт истории</button>
+                                    <label className="bg-slate-600 px-3 py-2 rounded cursor-pointer">
+                                        <input type="checkbox" checked={settings.voice} onChange={(e) => setSettings(s => ({ ...s, voice: e.target.checked }))} /> Автоголос
+                                    </label>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="md:col-span-2 bg-slate-700 rounded p-4">
+                            <h3 className="font-semibold">Слайд — образ твоего «Я»</h3>
+                            <p className="text-sm text-slate-300">Прикрепи картинку или опиши сцену. В ритуале она будет всплывать — это метод Зеланда (слайд) в связке с эмоцией Диспензы.</p>
+                            <div className="mt-3 flex gap-3 items-center">
+                                <input type="file" accept="image/*" onChange={(e) => {
+                                    const f = e.target.files && e.target.files[0];
+                                    if (!f) return;
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => { setSlideImage(ev.target.result); saveJSON('slide_image_data', ev.target.result); };
+                                    reader.readAsDataURL(f);
+                                }} />
+                                <button className="bg-slate-600 px-3 py-2 rounded" onClick={() => { setSlideImage(loadJSON('slide_image_data', null)); }}>Загрузить сохранённый</button>
+                                <button className="bg-slate-600 px-3 py-2 rounded" onClick={() => { setSlideImage(null); localStorage.removeItem('slide_image_data'); }}>Очистить</button>
+                            </div>
+                            {slideImage && (
+                                <div className="mt-3">
+                                    <img src={slideImage} alt="slide" className="max-h-40 rounded shadow" />
+                                </div>
+                            )}
+                        </section>
+                    </main>
+
+                    {/* Ritual modal */}
+                    {showRitual && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4">
+                            <div className="bg-white text-slate-900 rounded p-6 max-w-2xl w-full">
+                                <h3 className="text-xl font-bold mb-2">Расширенный ритуал (раз в неделю)</h3>
+                                <p className="text-slate-700 mb-4">Читай медленно, вслух или слушай — погружайся в каждую фразу, дыши глубоко. Слайд отображается вверху к центру.</p>
+                                <div className="bg-gradient-to-b from-emerald-50 to-white rounded p-3 mb-3">
+                                    <div className="text-sm">{slideImage ? <img src={slideImage} className="max-h-28 rounded mx-auto" /> : <div className="text-xs text-slate-500">[Слайд не установлен]</div>}</div>
+                                </div>
+                                <div className="space-y-2 h-56 overflow-auto p-2 bg-slate-50">
+                                    {`Моё тело полностью обновляется и возрождается. Происходит полная регенерация всех клеток и органов.
+У меня всё хорошо и будет ещё лучше. Ресурсы безграничны и они всегда доступны мне.
+В моём организме заложена программа на возрождение и развитие. Я снова 20 лет; выгляжу молодо и привлекательно.
+Моё тело исцеляется каждую секунду, поглощая божественный свет. Я окружён силой и любовью моих ангелов-хранителей. Я чувствую их присутствие.
+Я превращаюсь в Атланта: у меня мощное здоровье, мощная энергия и отличное самочувствие.
+Я живу в бесконечном изобилии и любви Вселенной. Я люблю и ценю себя. Я готов к здоровым гармоничным отношениям, которые придут в мою жизнь в идеальное время.
+Каждая клетка моего тела здорова, сильна и наполнена жизненной энергией.`}
+                                </div>
+                                <div className="mt-4 flex justify-end gap-2">
+                                    <button className="px-3 py-2 rounded bg-slate-300" onClick={() => setShowRitual(false)}>Закрыть</button>
+                                    <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={() => { quickSpeak(`Моё тело полностью обновляется и исцеляется. Я молод, силён и полон энергии.`); }}>Проиграть</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Help modal */}
+                    {showHelp && (
+                        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+                            <div className="bg-white text-slate-900 rounded p-6 max-w-xl w-full">
+                                <h3 className="text-xl font-bold mb-2">Как правильно повторять утверждение (метод: слайд + чувство)</h3>
+                                <div className="space-y-3 text-slate-700">
+                                    <p><strong>1.</strong> Выбери одну фразу из трёх. Не гоняйся за количеством — за качеством.</p>
+                                    <p><strong>2.</strong> Подготовка: 2–3 глубоких вдоха и выдоха. Расслабь тело, откройся чувству.</p>
+                                    <p><strong>3.</strong> Включи «слайд» — представь картинку, где цель уже реализована. Добавь 3 ярких детали (запах? цвет? окружающие люди?).</p>
+                                    <p><strong>4.</strong> Проживи эмоцию будущего: радость, уверенность, лёгкость. Почувствуй это в теле — в груди, животе, руках.</p>
+                                    <p><strong>5.</strong> Теперь мягко произнеси утверждение 1–3 раза вслух, синхронизируя с дыханием. Между повторениями держи образ и эмоцию.</p>
+                                    <p><strong>6.</strong> Заверши — поблагодари себя и Вселенную. Запиши одно слово в журнал силы (как почувствовал).</p>
+                                    <p className="text-sm text-slate-500">Рекомендация от методологов: 2–3 раза в день по 2–5 минут. Но ключ — ежедневная повторяемость и глубина переживания. Для «вечных» утверждений хватит 3—4 повторений вдень, но прочувствованных.</p>
+                                </div>
+                                <div className="mt-4 flex justify-end gap-2">
+                                    <button className="px-3 py-2 rounded bg-emerald-600 text-white" onClick={() => setShowHelp(false)}>Понял</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <footer className="mt-6 text-center text-xs text-slate-400">Почти готово — чтобы установить на iPhone: открывай этот экран в Safari → Поделиться → «На экран Домой». Для оффлайн: хостни файл service-worker.js и manifest.json в корне (есть подсказки в коде).</footer>
+                </div>
+            );
+        }
+
+        function MiniBarChart({ data = [] }) {
+            // data: [{key: 'YYYY-MM-DD', counts: [n,n,n]}]
+            const max = Math.max(...data.map(d => (d.counts || [0, 0, 0]).reduce((a, b) => a + b, 0)), 1);
+            return (
+                <div className="w-full h-24 flex items-end gap-1">
+                    {data.map((d, i) => {
+                        const sum = (d.counts || [0, 0, 0]).reduce((a, b) => a + b, 0);
+                        const h = Math.round((sum / max) * 100);
+                        return (
+                            <div key={i} className="flex-1 flex items-end">
+                                <div title={`${d.key}: ${sum}`} style={{ height: `${Math.max(4, h)}%` }} className="w-full rounded bg-emerald-400/80"></div>
+                            </div>
+                        );
+                    })}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<AffirmationTrainer />, document.getElementById('root'));
+    </script>
+</body>
+</html>
