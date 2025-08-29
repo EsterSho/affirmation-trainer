@@ -1,252 +1,139 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Тренажёр утверждений</title>
-<style>
-  body { font-family: sans-serif; background: #1e293b; color: #f1f5f9; margin:0; padding:0; }
-  .container { padding: 12px; max-width: 480px; margin: auto; }
-  .affirmation { background: #334155; padding:10px 12px; border-radius:8px; margin-bottom:8px; display:flex; justify-content: space-between; align-items:center; }
-  .affirm-text { flex:1; margin-right:8px; }
-  .affirm-count { font-size:12px; color:#94a3b8; text-align:right; }
-  button { cursor:pointer; border:none; border-radius:6px; padding:6px 10px; font-size:14px; }
-  .btn-green { background:#16a34a; color:white; }
-  .btn-green:hover { background:#15803d; }
-  .btn-gray { background:#475569; color:white; }
-  .stats { display:flex; justify-content:space-between; margin:12px 0; font-size:14px; }
-  .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; justify-content:center; align-items:center; }
-  .modal-content { background:white; color:#1e293b; width:90%; max-width:400px; max-height:90%; overflow-y:auto; padding:12px; border-radius:10px; }
-  .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .modal textarea { width:100%; margin-bottom:6px; border-radius:6px; padding:4px; font-size:14px; }
-  .slide img { width:100%; border-radius:6px; margin-top:6px; }
-  .ritual-line { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; background:#f1f5f9; padding:4px 6px; border-radius:4px; }
-  .ritual-line button { background:#ef4444; color:white; padding:2px 6px; font-size:12px; }
-  input[type="file"] { font-size:12px; }
-</style>
+  <meta charset="UTF-8">
+  <title>Тренажёр утверждений</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-slate-900 text-slate-100 min-h-screen p-4">
 
-<div class="container">
-  <h1 style="text-align:center;margin-bottom:12px;">Тренажёр утверждений</h1>
+<div class="max-w-3xl mx-auto">
+  <header class="mb-4">
+    <h1 class="text-2xl font-bold">Тренажёр утверждений</h1>
+    <p class="text-sm text-slate-300">Сохраняется оффлайн · ритуал силы</p>
+  </header>
 
-  <!-- Статистика -->
-  <div class="stats">
-    <div>Сегодня: <span id="today-count">0 повторов</span></div>
-    <div>Стрик: <span id="streak-count">0 дн.</span></div>
-  </div>
-
-  <!-- 3 вечных утверждения -->
-  <div id="permanent-affirmations"></div>
-
-  <!-- Редактируемые утверждения -->
-  <h3>Дополнительно</h3>
-  <div id="editable-affirmations"></div>
-  <button id="add-affirm" class="btn-gray" style="width:100%;margin-bottom:12px;">Добавить утверждение</button>
-
-  <!-- Кнопка ритуала -->
-  <button id="open-ritual" class="btn-green" style="width:100%;margin-bottom:12px;">Ритуал</button>
-
-  <!-- Быстрый ритуал -->
-  <button id="quick-ritual" class="btn-gray" style="width:100%;margin-bottom:12px;">Быстрый ритуал</button>
-
-  <!-- Сброс дня -->
-  <button id="reset-day" class="btn-gray" style="width:100%;margin-bottom:12px;">Сброс дня</button>
-</div>
-
-<!-- Модальное окно ритуала -->
-<div id="ritual-modal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3>Ритуал</h3>
-      <button id="close-ritual">✖</button>
+  <section class="bg-slate-700 p-4 rounded mb-4">
+    <h2 class="font-semibold mb-2">Твои 3 утверждения</h2>
+    <div id="affirmations-list" class="space-y-3"></div>
+    <div class="mt-3 flex gap-2">
+      <button id="reset-day" class="bg-slate-600 px-3 py-2 rounded">Сброс дня</button>
+      <button id="reset-all" class="bg-red-600 px-3 py-2 rounded">Сброс всех утверждений</button>
     </div>
+  </section>
 
-    <!-- Слайд -->
-    <div class="slide" id="ritual-slide"></div>
-    <input type="file" id="upload-slide">
-    <button id="clear-slide" class="btn-gray" style="width:100%;margin:6px 0;">Очистить слайд</button>
-
-    <!-- Редактируемый текст ритуала -->
-    <div id="ritual-text"></div>
-    <input type="text" id="new-ritual-line" placeholder="Новая строка">
-    <button id="add-ritual-line" class="btn-green" style="width:100%;margin:6px 0;">Добавить строку</button>
-    <button id="save-ritual" class="btn-green" style="width:100%;margin-bottom:6px;">Сохранить ритуал</button>
-  </div>
+  <section class="bg-slate-700 p-4 rounded">
+    <h2 class="font-semibold mb-2">Прогресс</h2>
+    <div id="today-count" class="text-lg font-bold mb-2"></div>
+    <div class="h-24 flex items-end gap-1" id="mini-bar-chart"></div>
+  </section>
 </div>
 
 <script>
-// ====== Настройки ======
-const STORAGE_KEYS = {
-  AFF: 'affirm_trainer_affirmations_v1',
-  HISTORY: 'affirm_trainer_history_v1',
-  RITUAL: 'affirm_trainer_ritual_v1',
-  SLIDE: 'affirm_trainer_slide_v1'
-};
+  const STORAGE_KEYS = {
+    AFF: 'affirmations_v1',
+    HISTORY: 'affirmations_history_v1'
+  };
 
-const todayKey = () => new Date().toISOString().slice(0,10);
+  const DEFAULT_AFFIRMATIONS = [
+    "Моё тело обновляется и исцеляется. Я молод, силён и полон энергии.",
+    "Я живу в изобилии и любви Вселенной. Все ресурсы доступны мне.",
+    "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время."
+  ];
 
-// ====== Вечные утверждения ======
-const permanentAffirmations = [
-  "Моё тело обновляется и исцеляется. Я молод, силён и полон энергии.",
-  "Я живу в изобилии и любви Вселенной. Все ресурсы доступны мне.",
-  "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время."
-];
-
-// ====== Загрузка истории ======
-let history = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY)||'{}');
-if(!history[todayKey()]) history[todayKey()] = Array(permanentAffirmations.length).fill(0);
-
-function saveHistory(){ localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history)); updateStats(); }
-
-function updateStats(){
-  const todaySum = history[todayKey()]?.reduce((a,b)=>a+b,0) || 0;
-  document.getElementById('today-count').innerText = todaySum + ' повторов';
-  const streak = Object.keys(history).filter(k=>history[k].some(v=>v>0)).length;
-  document.getElementById('streak-count').innerText = streak + ' дн.';
-}
-
-// ====== Рендер вечных утверждений ======
-function renderPermanent(){
-  const container = document.getElementById('permanent-affirmations');
-  container.innerHTML='';
-  permanentAffirmations.forEach((text,i)=>{
-    const div = document.createElement('div');
-    div.className='affirmation';
-    div.innerHTML = `<div class="affirm-text">${text}<div class="affirm-count" id="count-perm-${i}">${history[todayKey()][i]}</div></div>
-      <button class="btn-green" data-idx="${i}">✅</button>`;
-    container.appendChild(div);
-    div.querySelector('button').onclick = ()=>{
-      history[todayKey()][i]++;
-      saveHistory();
-      document.getElementById(`count-perm-${i}`).innerText = history[todayKey()][i];
-    };
-  });
-}
-
-// ====== Редактируемые утверждения ======
-let editableAffirmations = JSON.parse(localStorage.getItem(STORAGE_KEYS.AFF)||'[]');
-function renderEditable(){
-  const container = document.getElementById('editable-affirmations');
-  container.innerHTML='';
-  editableAffirmations.forEach((text,i)=>{
-    const div = document.createElement('div');
-    div.className='affirmation';
-    div.innerHTML = `<input type="text" value="${text}" class="affirm-text">
-      <div style="display:flex; flex-direction:column;align-items:flex-end;">
-        <div class="affirm-count" id="count-edit-${i}">${history[todayKey()][i+3]||0}</div>
-        <button class="btn-green" data-idx="${i}">✅</button>
-        <button class="btn-gray remove-affirm" data-idx="${i}">✖</button>
-      </div>`;
-    container.appendChild(div);
-
-    div.querySelector('.affirm-text').onchange = (e)=>{
-      editableAffirmations[i] = e.target.value;
-      localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(editableAffirmations));
-    };
-    div.querySelector('.btn-green').onclick = ()=>{
-      history[todayKey()][i+3] = (history[todayKey()][i+3]||0)+1;
-      saveHistory();
-      document.getElementById(`count-edit-${i}`).innerText = history[todayKey()][i+3];
-    };
-    div.querySelector('.remove-affirm').onclick = ()=>{
-      editableAffirmations.splice(i,1);
-      localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(editableAffirmations));
-      renderEditable();
-    };
-  });
-}
-
-document.getElementById('add-affirm').onclick = ()=>{
-  editableAffirmations.push('Новое утверждение');
-  localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(editableAffirmations));
-  if(!history[todayKey()]) history[todayKey()] = [];
-  history[todayKey()].push(0);
-  saveHistory();
-  renderEditable();
-};
-
-// ====== Ритуал ======
-let ritualText = JSON.parse(localStorage.getItem(STORAGE_KEYS.RITUAL)||'[]');
-function renderRitual(){
-  const container = document.getElementById('ritual-text');
-  container.innerHTML = ritualText.map((line,idx)=>`
-    <div class="ritual-line">
-      <input type="text" value="${line}" data-idx="${idx}">
-      <button data-idx="${idx}">✖</button>
-    </div>
-  `).join('');
-  container.querySelectorAll('input').forEach(inp=>{
-    inp.onchange = (e)=>{
-      const idx = e.target.dataset.idx;
-      ritualText[idx] = e.target.value;
-    };
-  });
-  container.querySelectorAll('button').forEach(btn=>{
-    btn.onclick = (e)=>{
-      const idx = e.target.dataset.idx;
-      ritualText.splice(idx,1);
-      renderRitual();
-    };
-  });
-}
-
-document.getElementById('add-ritual-line').onclick = ()=>{
-  const val = document.getElementById('new-ritual-line').value.trim();
-  if(val){ ritualText.push(val); document.getElementById('new-ritual-line').value=''; renderRitual(); }
-};
-
-document.getElementById('save-ritual').onclick = ()=>{
-  localStorage.setItem(STORAGE_KEYS.RITUAL, JSON.stringify(ritualText));
-  alert('Ритуал сохранён!');
-};
-
-document.getElementById('open-ritual').onclick = ()=>{
-  document.getElementById('ritual-modal').style.display='flex';
-  renderRitual();
-  const slide = localStorage.getItem(STORAGE_KEYS.SLIDE);
-  if(slide) document.getElementById('ritual-slide').innerHTML = `<img src="${slide}">`;
-};
-
-document.getElementById('close-ritual').onclick = ()=>{
-  document.getElementById('ritual-modal').style.display='none';
-};
-
-// ====== Слайд ======
-document.getElementById('upload-slide').onchange = (e)=>{
-  const file = e.target.files[0];
-  if(file){
-    const reader = new FileReader();
-    reader.onload = function(evt){
-      localStorage.setItem(STORAGE_KEYS.SLIDE, evt.target.result);
-      document.getElementById('ritual-slide').innerHTML = `<img src="${evt.target.result}">`;
-    };
-    reader.readAsDataURL(file);
+  function todayKey() {
+    return new Date().toISOString().slice(0,10);
   }
-};
-document.getElementById('clear-slide').onclick = ()=>{
-  localStorage.removeItem(STORAGE_KEYS.SLIDE);
-  document.getElementById('ritual-slide').innerHTML='';
-};
 
-// ====== Быстрый ритуал ======
-document.getElementById('quick-ritual').onclick = ()=>{
-  ritualText.forEach((line,idx)=> console.log(`Ритуал: ${line}`));
-  alert('Ритуал выполнен! (консоль для проверки)');
-};
+  function loadJSON(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch {
+      return fallback;
+    }
+  }
 
-// ====== Сброс ======
-document.getElementById('reset-day').onclick = ()=>{
-  history[todayKey()] = Array(permanentAffirmations.length+editableAffirmations.length).fill(0);
-  saveHistory();
-  renderPermanent();
-  renderEditable();
-};
+  function saveJSON(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+  }
 
-// ====== Инициализация ======
-renderPermanent();
-renderEditable();
-updateStats();
+  let affirmations = loadJSON(STORAGE_KEYS.AFF, DEFAULT_AFFIRMATIONS);
+  let history = loadJSON(STORAGE_KEYS.HISTORY, {});
+
+  function increment(idx) {
+    const t = todayKey();
+    if (!history[t]) history[t] = [0,0,0];
+    history[t][idx]++;
+    saveJSON(STORAGE_KEYS.HISTORY, history);
+    renderAffirmations();
+    renderProgress();
+  }
+
+  function resetToday() {
+    const t = todayKey();
+    history[t] = [0,0,0];
+    saveJSON(STORAGE_KEYS.HISTORY, history);
+    renderAffirmations();
+    renderProgress();
+  }
+
+  function resetAll() {
+    localStorage.removeItem(STORAGE_KEYS.AFF);
+    localStorage.removeItem(STORAGE_KEYS.HISTORY);
+    affirmations = [...DEFAULT_AFFIRMATIONS];
+    history = {};
+    renderAffirmations();
+    renderProgress();
+  }
+
+  function renderAffirmations() {
+    const container = document.getElementById('affirmations-list');
+    container.innerHTML = '';
+    const t = todayKey();
+    affirmations.forEach((text, idx) => {
+      const count = (history[t] || [0,0,0])[idx] || 0;
+      const div = document.createElement('div');
+      div.className = 'bg-slate-800 p-3 rounded flex justify-between items-center';
+      div.innerHTML = `
+        <div>${text}<div class="text-xs text-slate-400 mt-1">Сколько раз сегодня: ${count}</div></div>
+        <button class="bg-emerald-500 hover:bg-emerald-600 rounded-full w-12 h-12 font-bold">✅</button>
+      `;
+      div.querySelector('button').onclick = () => increment(idx);
+      container.appendChild(div);
+    });
+  }
+
+  function renderProgress() {
+    const t = todayKey();
+    const todaySum = (history[t] || [0,0,0]).reduce((a,b)=>a+b,0);
+    document.getElementById('today-count').textContent = `Сегодня повторов: ${todaySum}`;
+
+    // mini-bar-chart
+    const chart = document.getElementById('mini-bar-chart');
+    chart.innerHTML = '';
+    for (let i=29;i>=0;i--) {
+      const d = new Date();
+      d.setDate(d.getDate()-i);
+      const key = d.toISOString().slice(0,10);
+      const sum = (history[key] || [0,0,0]).reduce((a,b)=>a+b,0);
+      const max = 5; // max высота в процентах для простоты
+      const h = Math.max(4, Math.min(sum*20,100));
+      const bar = document.createElement('div');
+      bar.className = 'flex-1 rounded bg-emerald-400/80';
+      bar.style.height = h+'%';
+      bar.title = `${key}: ${sum}`;
+      chart.appendChild(bar);
+    }
+  }
+
+  document.getElementById('reset-day').onclick = resetToday;
+  document.getElementById('reset-all').onclick = resetAll;
+
+  renderAffirmations();
+  renderProgress();
 </script>
+
 </body>
 </html>
