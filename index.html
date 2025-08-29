@@ -5,41 +5,78 @@
   <title>Тренажёр утверждений</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Иконка -->
   <link rel="icon" type="image/png" href="icon.png">
-  <!-- Если у тебя .ico, используй:
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  -->
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen p-4">
 
 <div class="max-w-3xl mx-auto">
-  <header class="mb-4">
-    <h1 class="text-2xl font-bold">Тренажёр утверждений</h1>
-    <p class="text-sm text-slate-300">Сохраняется оффлайн · ритуал силы</p>
+  <header class="mb-4 flex justify-between items-center">
+    <div>
+      <h1 class="text-2xl font-bold">Тренажёр утверждений</h1>
+      <p class="text-sm text-slate-300">Сохраняется оффлайн · ритуал силы</p>
+    </div>
+    <button id="open-ritual" class="bg-emerald-600 px-3 py-2 rounded">Ритуал</button>
   </header>
 
+  <!-- Утверждения -->
   <section class="bg-slate-700 p-4 rounded mb-4">
-    <h2 class="font-semibold mb-2">Твои 3 утверждения</h2>
+    <div class="flex justify-between items-center mb-2">
+      <h2 class="font-semibold">Твои 3 утверждения</h2>
+      <div class="flex gap-2">
+        <button id="edit-toggle" class="bg-slate-600 px-2 py-1 rounded">Ред.</button>
+        <button id="reset-all" class="bg-red-600 px-2 py-1 rounded">Сброс</button>
+      </div>
+    </div>
     <div id="affirmations-list" class="space-y-3"></div>
     <div class="mt-3 flex gap-2">
       <button id="reset-day" class="bg-slate-600 px-3 py-2 rounded">Сброс дня</button>
-      <button id="reset-all" class="bg-red-600 px-3 py-2 rounded">Сброс всех утверждений</button>
+      <button id="export-history" class="bg-indigo-600 px-3 py-2 rounded">Экспорт истории</button>
     </div>
   </section>
 
-  <section class="bg-slate-700 p-4 rounded">
+  <!-- Прогресс -->
+  <section class="bg-slate-700 p-4 rounded mb-4">
     <h2 class="font-semibold mb-2">Прогресс</h2>
     <div id="today-count" class="text-lg font-bold mb-2"></div>
     <div class="h-24 flex items-end gap-1" id="mini-bar-chart"></div>
+    <div id="streak" class="mt-2 text-slate-300"></div>
   </section>
+
+  <!-- Слайд/образ Я -->
+  <section class="bg-slate-700 p-4 rounded mb-4">
+    <h2 class="font-semibold mb-2">Слайд — образ твоего «Я»</h2>
+    <div class="flex gap-3 items-center mb-2">
+      <input type="file" id="slide-upload" accept="image/*">
+      <button id="load-slide" class="bg-slate-600 px-3 py-2 rounded">Загрузить сохранённый</button>
+      <button id="clear-slide" class="bg-slate-600 px-3 py-2 rounded">Очистить</button>
+    </div>
+    <div id="slide-container"></div>
+  </section>
+
+</div>
+
+<!-- Ритуал -->
+<div id="ritual-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4">
+  <div class="bg-white text-slate-900 rounded p-6 max-w-2xl w-full">
+    <h3 class="text-xl font-bold mb-2">Ритуал утверждений</h3>
+    <div class="bg-gradient-to-b from-emerald-50 to-white rounded p-3 mb-3">
+      <div id="ritual-slide"></div>
+    </div>
+    <div id="ritual-text" class="space-y-2 h-56 overflow-auto p-2 bg-slate-50"></div>
+    <div class="mt-4 flex justify-end gap-2">
+      <button id="close-ritual" class="px-3 py-2 rounded bg-slate-300">Закрыть</button>
+    </div>
+  </div>
 </div>
 
 <script>
+  // -------------------
+  // Локальные данные
+  // -------------------
   const STORAGE_KEYS = {
-    AFF: 'affirmations_v1',
-    HISTORY: 'affirmations_history_v1'
+    AFF: 'affirmations_v2',
+    HISTORY: 'affirmations_history_v2',
+    SLIDE: 'affirm_slide_v2'
   };
 
   const DEFAULT_AFFIRMATIONS = [
@@ -48,96 +85,144 @@
     "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время."
   ];
 
-  function todayKey() {
-    return new Date().toISOString().slice(0,10);
-  }
-
-  function loadJSON(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-
-  function saveJSON(key, data) {
-    localStorage.setItem(key, JSON.stringify(data));
-  }
-
   let affirmations = loadJSON(STORAGE_KEYS.AFF, DEFAULT_AFFIRMATIONS);
   let history = loadJSON(STORAGE_KEYS.HISTORY, {});
+  let slideImage = loadJSON(STORAGE_KEYS.SLIDE, null);
+  let editMode = false;
 
-  function increment(idx) {
+  function todayKey() { return new Date().toISOString().slice(0,10); }
+  function loadJSON(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback}catch{return fallback;}}
+  function saveJSON(key,data){localStorage.setItem(key,JSON.stringify(data));}
+
+  // -------------------
+  // Основные функции
+  // -------------------
+  function increment(idx){
     const t = todayKey();
-    if (!history[t]) history[t] = [0,0,0];
+    if(!history[t]) history[t]=[0,0,0];
     history[t][idx]++;
     saveJSON(STORAGE_KEYS.HISTORY, history);
-    renderAffirmations();
-    renderProgress();
+    renderAffirmations(); renderProgress();
   }
 
-  function resetToday() {
-    const t = todayKey();
-    history[t] = [0,0,0];
-    saveJSON(STORAGE_KEYS.HISTORY, history);
-    renderAffirmations();
-    renderProgress();
+  function resetToday(){ 
+    history[todayKey()] = [0,0,0]; 
+    saveJSON(STORAGE_KEYS.HISTORY, history); 
+    renderAffirmations(); renderProgress(); 
   }
 
-  function resetAll() {
+  function resetAll(){
     localStorage.removeItem(STORAGE_KEYS.AFF);
     localStorage.removeItem(STORAGE_KEYS.HISTORY);
-    affirmations = [...DEFAULT_AFFIRMATIONS];
-    history = {};
-    renderAffirmations();
-    renderProgress();
+    affirmations = [...DEFAULT_AFFIRMATIONS]; history={};
+    renderAffirmations(); renderProgress();
   }
 
-  function renderAffirmations() {
-    const container = document.getElementById('affirmations-list');
-    container.innerHTML = '';
+  function exportHistory(){
+    const blob = new Blob([JSON.stringify(history,null,2)],{type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`affirm_history_${todayKey()}.json`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function quickSpeak(text){
+    const synth = window.speechSynthesis;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang="ru-RU"; utter.rate=0.95;
+    synth.cancel(); synth.speak(utter);
+  }
+
+  function renderAffirmations(){
+    const container = document.getElementById('affirmations-list'); container.innerHTML='';
     const t = todayKey();
-    affirmations.forEach((text, idx) => {
-      const count = (history[t] || [0,0,0])[idx] || 0;
+    affirmations.forEach((a,i)=>{
+      const count = (history[t]||[0,0,0])[i]||0;
       const div = document.createElement('div');
-      div.className = 'bg-slate-800 p-3 rounded flex justify-between items-center';
-      div.innerHTML = `
-        <div>${text}<div class="text-xs text-slate-400 mt-1">Сколько раз сегодня: ${count}</div></div>
-        <button class="bg-emerald-500 hover:bg-emerald-600 rounded-full w-12 h-12 font-bold">✅</button>
+      div.className='bg-slate-800 p-3 rounded flex justify-between items-center';
+      div.innerHTML=`
+        <div>${editMode?`<textarea class="w-full bg-transparent resize-none" rows="2">${a}</textarea>`:a}<div class="text-xs text-slate-400 mt-1">Сколько раз сегодня: ${count}</div></div>
+        <div class="flex flex-col gap-1">
+          <button class="bg-emerald-500 hover:bg-emerald-600 rounded-full w-12 h-12 font-bold">✅</button>
+          <button class="px-2 py-1 bg-slate-600 rounded text-xs">▶</button>
+        </div>
       `;
-      div.querySelector('button').onclick = () => increment(idx);
+      div.querySelector('button').onclick = ()=>increment(i);
+      div.querySelectorAll('button')[1].onclick=()=>quickSpeak(a);
+      if(editMode) div.querySelector('textarea').oninput=(e)=>{affirmations[i]=e.target.value; saveJSON(STORAGE_KEYS.AFF,affirmations);}
       container.appendChild(div);
     });
   }
 
-  function renderProgress() {
+  function renderProgress(){
     const t = todayKey();
-    const todaySum = (history[t] || [0,0,0]).reduce((a,b)=>a+b,0);
-    document.getElementById('today-count').textContent = `Сегодня повторов: ${todaySum}`;
+    const todaySum=(history[t]||[0,0,0]).reduce((a,b)=>a+b,0);
+    document.getElementById('today-count').textContent=`Сегодня повторов: ${todaySum}`;
 
-    // mini-bar-chart
-    const chart = document.getElementById('mini-bar-chart');
-    chart.innerHTML = '';
-    for (let i=29;i>=0;i--) {
-      const d = new Date();
-      d.setDate(d.getDate()-i);
-      const key = d.toISOString().slice(0,10);
-      const sum = (history[key] || [0,0,0]).reduce((a,b)=>a+b,0);
-      const h = Math.max(4, Math.min(sum*20,100));
-      const bar = document.createElement('div');
-      bar.className = 'flex-1 rounded bg-emerald-400/80';
-      bar.style.height = h+'%';
-      bar.title = `${key}: ${sum}`;
+    const chart = document.getElementById('mini-bar-chart'); chart.innerHTML='';
+    for(let i=29;i>=0;i--){
+      const d=new Date(); d.setDate(d.getDate()-i);
+      const key=d.toISOString().slice(0,10);
+      const sum=(history[key]||[0,0,0]).reduce((a,b)=>a+b,0);
+      const h=Math.max(4,Math.min(sum*20,100));
+      const bar=document.createElement('div'); bar.className='flex-1 rounded bg-emerald-400/80'; bar.style.height=h+'%'; bar.title=`${key}: ${sum}`;
       chart.appendChild(bar);
+    }
+
+    // стрик
+    let streak=0;
+    for(let i=0;i<30;i++){
+      const d=new Date(); d.setDate(d.getDate()-i);
+      const key=d.toISOString().slice(0,10);
+      const sum=(history[key]||[0,0,0]).reduce((a,b)=>a+b,0);
+      if(sum>0) streak++; else break;
+    }
+    document.getElementById('streak').textContent=`Стрик: ${streak} дн.`;
+  }
+
+  function renderSlide(){
+    const container=document.getElementById('slide-container'); container.innerHTML='';
+    if(slideImage){
+      const img=document.createElement('img'); img.src=slideImage; img.className='max-h-40 rounded shadow';
+      container.appendChild(img);
     }
   }
 
-  document.getElementById('reset-day').onclick = resetToday;
-  document.getElementById('reset-all').onclick = resetAll;
+  // -------------------
+  // Слайд/файл
+  // -------------------
+  document.getElementById('slide-upload').onchange=(e)=>{
+    const file=e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=(ev)=>{slideImage=ev.target.result; saveJSON(STORAGE_KEYS.SLIDE,slideImage); renderSlide();}
+    reader.readAsDataURL(file);
+  }
+  document.getElementById('load-slide').onclick=()=>{slideImage=loadJSON(STORAGE_KEYS.SLIDE,null); renderSlide();}
+  document.getElementById('clear-slide').onclick=()=>{slideImage=null; localStorage.removeItem(STORAGE_KEYS.SLIDE); renderSlide();}
 
+  // -------------------
+  // Ритуал
+  // -------------------
+  document.getElementById('open-ritual').onclick=()=>{
+    document.getElementById('ritual-modal').classList.remove('hidden');
+    document.getElementById('ritual-slide').innerHTML=slideImage?`<img src="${slideImage}" class="max-h-28 rounded mx-auto">`:'[Слайд не установлен]';
+    document.getElementById('ritual-text').innerHTML=affirmations.map(a=>`<p>${a}</p>`).join('');
+  }
+  document.getElementById('close-ritual').onclick=()=>document.getElementById('ritual-modal').classList.add('hidden');
+
+  // -------------------
+  // Кнопки управления
+  // -------------------
+  document.getElementById('edit-toggle').onclick=()=>{editMode=!editMode; renderAffirmations();}
+  document.getElementById('reset-day').onclick=resetToday;
+  document.getElementById('reset-all').onclick=resetAll;
+  document.getElementById('export-history').onclick=exportHistory;
+
+  // -------------------
+  // Инициализация
+  // -------------------
   renderAffirmations();
   renderProgress();
+  renderSlide();
 </script>
 
 </body>
