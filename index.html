@@ -1,228 +1,283 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Тренажёр утверждений</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="icon" type="image/png" href="icon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Тренажёр утверждений</title>
+<style>
+body { margin:0; font-family:sans-serif; background:linear-gradient(to bottom, #1e293b, #0f172a); color:#f8fafc; }
+button { cursor:pointer; }
+input, textarea { font-family:inherit; }
+.hidden { display:none; }
+.max-h-28 { max-height:7rem; }
+.rounded { border-radius:0.5rem; }
+.bg-slate-700 { background:#334155; }
+.bg-slate-800 { background:#1e293b; }
+.bg-slate-600 { background:#475569; }
+.bg-emerald-600 { background:#059669; }
+.bg-emerald-500 { background:#10b981; }
+.bg-indigo-600 { background:#4f46e5; }
+.bg-slate-50 { background:#f8fafc; color:#1e293b; }
+.bg-black\/60 { background:rgba(0,0,0,0.6); }
+.bg-slate-300 { background:#cbd5e1; color:#1e293b; }
+.text-slate-300 { color:#cbd5e1; }
+.text-slate-400 { color:#94a3b8; }
+.text-slate-500 { color:#6b7280; }
+.text-slate-700 { color:#374151; }
+.text-lg { font-size:1.125rem; }
+.text-xl { font-size:1.25rem; }
+.text-2xl { font-size:1.5rem; }
+.font-bold { font-weight:bold; }
+.font-semibold { font-weight:600; }
+.p-4 { padding:1rem; }
+.p-3 { padding:0.75rem; }
+.p-2 { padding:0.5rem; }
+.p-1 { padding:0.25rem; }
+.mt-2 { margin-top:0.5rem; }
+.mt-3 { margin-top:0.75rem; }
+.mt-4 { margin-top:1rem; }
+.mb-3 { margin-bottom:0.75rem; }
+.mb-4 { margin-bottom:1rem; }
+.mb-2 { margin-bottom:0.5rem; }
+.gap-2 { gap:0.5rem; }
+.gap-3 { gap:0.75rem; }
+.flex { display:flex; }
+.items-center { align-items:center; }
+.items-start { align-items:flex-start; }
+.justify-between { justify-content:space-between; }
+.justify-end { justify-content:flex-end; }
+.flex-col { flex-direction:column; }
+.grid { display:grid; }
+.grid-cols-1 { grid-template-columns:repeat(1,1fr); }
+.md\:grid-cols-2 { grid-template-columns:repeat(2,1fr); }
+.md\:col-span-2 { grid-column:span 2; }
+.space-y-2 > * + * { margin-top:0.5rem; }
+.space-y-3 > * + * { margin-top:0.75rem; }
+.overflow-auto { overflow:auto; }
+.w-full { width:100%; }
+.text-right { text-align:right; }
+.text-center { text-align:center; }
+.h-24 { height:6rem; }
+</style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4">
+<body>
 
-<div class="max-w-3xl mx-auto">
-  <header class="mb-4 flex justify-between items-center">
-    <div>
-      <h1 class="text-2xl font-bold">Тренажёр утверждений</h1>
-      <p class="text-sm text-slate-300">Сохраняется оффлайн · ритуал силы</p>
-    </div>
+<header class="flex items-center justify-between p-4">
+  <div>
+    <h1 class="text-2xl font-bold">Тренажёр утверждений</h1>
+    <p class="text-sm text-slate-300">Редактируемые утверждения · оффлайн · ритуал силы</p>
+  </div>
+  <div class="flex items-center gap-2">
     <button id="open-ritual" class="bg-emerald-600 px-3 py-2 rounded">Ритуал</button>
-  </header>
+  </div>
+</header>
+
+<main class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4">
 
   <!-- Утверждения -->
-  <section class="bg-slate-700 p-4 rounded mb-4">
-    <div class="flex justify-between items-center mb-2">
-      <h2 class="font-semibold">Твои 3 утверждения</h2>
-      <div class="flex gap-2">
-        <button id="edit-toggle" class="bg-slate-600 px-2 py-1 rounded">Ред.</button>
-        <button id="reset-all" class="bg-red-600 px-2 py-1 rounded">Сброс</button>
-      </div>
+  <section class="bg-slate-700 rounded p-4">
+    <div class="flex justify-between items-start">
+      <h2 class="font-semibold">Твои утверждения</h2>
     </div>
-    <div id="affirmations-list" class="space-y-3"></div>
-    <div class="mt-3 flex gap-2">
+    <div class="mt-3 space-y-3" id="affirmations-list"></div>
+    <div class="mt-4 flex gap-2">
+      <button id="quick-ritual" class="bg-indigo-600 px-3 py-2 rounded">Быстрый ритуал</button>
       <button id="reset-day" class="bg-slate-600 px-3 py-2 rounded">Сброс дня</button>
-      <button id="export-history" class="bg-indigo-600 px-3 py-2 rounded">Экспорт истории</button>
     </div>
   </section>
 
   <!-- Прогресс -->
-  <section class="bg-slate-700 p-4 rounded mb-4">
-    <h2 class="font-semibold mb-2">Прогресс</h2>
-    <div id="today-count" class="text-lg font-bold mb-2"></div>
-    <div class="h-24 flex items-end gap-1" id="mini-bar-chart"></div>
-    <div id="streak" class="mt-2 text-slate-300"></div>
+  <section class="bg-slate-700 rounded p-4">
+    <h3 class="font-semibold">Прогресс</h3>
+    <div class="mt-3 flex flex-col gap-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-sm text-slate-300">Сегодня</div>
+          <div class="text-lg font-bold" id="today-count">0 повторов</div>
+        </div>
+        <div class="text-right">
+          <div class="text-sm text-slate-300">Стрик</div>
+          <div class="text-lg font-bold" id="streak-count">0 дн.</div>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <!-- Слайд/образ Я -->
-  <section class="bg-slate-700 p-4 rounded mb-4">
-    <h2 class="font-semibold mb-2">Слайд — образ твоего «Я»</h2>
-    <div class="flex gap-3 items-center mb-2">
-      <input type="file" id="slide-upload" accept="image/*">
-      <button id="load-slide" class="bg-slate-600 px-3 py-2 rounded">Загрузить сохранённый</button>
+  <!-- Слайд -->
+  <section class="md:col-span-2 bg-slate-700 rounded p-4">
+    <h3 class="font-semibold">Слайд — образ твоего «Я»</h3>
+    <div class="mt-3 flex gap-3 items-center">
+      <input type="file" id="upload-slide" accept="image/*">
       <button id="clear-slide" class="bg-slate-600 px-3 py-2 rounded">Очистить</button>
     </div>
-    <div id="slide-container"></div>
+    <div id="ritual-slide" class="mt-3"></div>
   </section>
 
-</div>
+</main>
 
-<!-- Ритуал -->
-<div id="ritual-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4">
+<!-- Модальное окно ритуала -->
+<div id="ritual-modal" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4">
   <div class="bg-white text-slate-900 rounded p-6 max-w-2xl w-full">
-    <h3 class="text-xl font-bold mb-2">Ритуал утверждений</h3>
-    <div class="bg-gradient-to-b from-emerald-50 to-white rounded p-3 mb-3">
-      <div id="ritual-slide"></div>
+    <h3 class="text-xl font-bold mb-2">Расширенный ритуал</h3>
+    <p class="text-slate-700 mb-4">Редактируй текст прямо здесь. Добавляй, удаляй, сохраняй.</p>
+
+    <div class="mb-3">
+      <input type="text" id="new-ritual-line" placeholder="Новая фраза" class="w-full border px-2 py-1 rounded">
+      <button id="add-ritual-line" class="mt-2 bg-emerald-600 text-white px-3 py-1 rounded">Добавить</button>
     </div>
-    <div id="ritual-text" class="space-y-2 h-56 overflow-auto p-2 bg-slate-50"></div>
+
+    <div id="ritual-text" class="space-y-2 max-h-56 overflow-auto p-2 bg-slate-50 rounded"></div>
+
     <div class="mt-4 flex justify-end gap-2">
+      <button id="save-ritual" class="px-3 py-2 rounded bg-emerald-600 text-white">Сохранить</button>
       <button id="close-ritual" class="px-3 py-2 rounded bg-slate-300">Закрыть</button>
     </div>
   </div>
 </div>
 
 <script>
-  // -------------------
-  // Локальные данные
-  // -------------------
-  const STORAGE_KEYS = {
-    AFF: 'affirmations_v2',
-    HISTORY: 'affirmations_history_v2',
-    SLIDE: 'affirm_slide_v2'
-  };
+// ====== Настройки хранения ======
+const STORAGE_KEYS = {
+  AFF: 'affirmations_list',
+  HISTORY: 'affirmations_history',
+  RITUAL: 'ritual_text',
+  SLIDE: 'slide_image'
+};
 
-  const DEFAULT_AFFIRMATIONS = [
-    "Моё тело обновляется и исцеляется. Я молод, силён и полон энергии.",
-    "Я живу в изобилии и любви Вселенной. Все ресурсы доступны мне.",
-    "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время."
-  ];
+// ====== Утверждения ======
+let affirmations = JSON.parse(localStorage.getItem(STORAGE_KEYS.AFF) || JSON.stringify([
+  "Моё тело обновляется и исцеляется.",
+  "Я живу в изобилии и любви Вселенной.",
+  "Я люблю и ценю себя."
+]));
 
-  let affirmations = loadJSON(STORAGE_KEYS.AFF, DEFAULT_AFFIRMATIONS);
-  let history = loadJSON(STORAGE_KEYS.HISTORY, {});
-  let slideImage = loadJSON(STORAGE_KEYS.SLIDE, null);
-  let editMode = false;
+let history = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || '{}');
+let todayKey = new Date().toISOString().slice(0,10);
+if(!history[todayKey]) history[todayKey] = Array(affirmations.length).fill(0);
 
-  function todayKey() { return new Date().toISOString().slice(0,10); }
-  function loadJSON(key,fallback){try{return JSON.parse(localStorage.getItem(key))||fallback}catch{return fallback;}}
-  function saveJSON(key,data){localStorage.setItem(key,JSON.stringify(data));}
+function renderAffirmations() {
+  const container = document.getElementById('affirmations-list');
+  container.innerHTML = '';
+  affirmations.forEach((a, i) => {
+    const div = document.createElement('div');
+    div.className = 'bg-slate-800 p-3 rounded flex gap-3 items-center';
+    div.innerHTML = `
+      <div class="flex-1">
+        <textarea class="w-full bg-transparent resize-none" rows="2">${a}</textarea>
+        <div class="text-xs text-slate-400 mt-1">Сколько раз сегодня повторил: <span id="count-${i}">${history[todayKey][i]}</span></div>
+      </div>
+      <button data-idx="${i}" class="remove-line bg-red-500 text-white px-2 rounded text-xs">✖</button>
+    `;
+    container.appendChild(div);
 
-  // -------------------
-  // Основные функции
-  // -------------------
-  function increment(idx){
-    const t = todayKey();
-    if(!history[t]) history[t]=[0,0,0];
-    history[t][idx]++;
-    saveJSON(STORAGE_KEYS.HISTORY, history);
-    renderAffirmations(); renderProgress();
-  }
+    div.querySelector('textarea').onchange = (e) => {
+      affirmations[i] = e.target.value;
+      localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(affirmations));
+    };
+  });
 
-  function resetToday(){ 
-    history[todayKey()] = [0,0,0]; 
-    saveJSON(STORAGE_KEYS.HISTORY, history); 
-    renderAffirmations(); renderProgress(); 
-  }
+  // Удаление
+  container.querySelectorAll('.remove-line').forEach(btn => {
+    btn.onclick = (e) => {
+      const i = e.target.dataset.idx;
+      affirmations.splice(i,1);
+      history[todayKey].splice(i,1);
+      localStorage.setItem(STORAGE_KEYS.AFF, JSON.stringify(affirmations));
+      localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+      renderAffirmations();
+    };
+  });
+}
+renderAffirmations();
 
-  function resetAll(){
-    localStorage.removeItem(STORAGE_KEYS.AFF);
-    localStorage.removeItem(STORAGE_KEYS.HISTORY);
-    affirmations = [...DEFAULT_AFFIRMATIONS]; history={};
-    renderAffirmations(); renderProgress();
-  }
+// ====== Ритуал ======
+let ritualText = JSON.parse(localStorage.getItem(STORAGE_KEYS.RITUAL) || '[]');
 
-  function exportHistory(){
-    const blob = new Blob([JSON.stringify(history,null,2)],{type:"application/json"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=`affirm_history_${todayKey()}.json`; a.click();
-    URL.revokeObjectURL(url);
-  }
+function renderRitualText() {
+  const container = document.getElementById('ritual-text');
+  container.innerHTML = ritualText.map((line, idx) => `
+    <div class="flex justify-between items-center bg-slate-100 p-1 rounded">
+      <span>${line}</span>
+      <button data-idx="${idx}" class="remove-line bg-red-500 text-white px-2 rounded text-xs">✖</button>
+    </div>
+  `).join('');
 
-  function quickSpeak(text){
-    const synth = window.speechSynthesis;
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang="ru-RU"; utter.rate=0.95;
-    synth.cancel(); synth.speak(utter);
-  }
+  container.querySelectorAll('.remove-line').forEach(btn => {
+    btn.onclick = (e) => {
+      const i = e.target.dataset.idx;
+      ritualText.splice(i,1);
+      renderRitualText();
+    };
+  });
+}
 
-  function renderAffirmations(){
-    const container = document.getElementById('affirmations-list'); container.innerHTML='';
-    const t = todayKey();
-    affirmations.forEach((a,i)=>{
-      const count = (history[t]||[0,0,0])[i]||0;
-      const div = document.createElement('div');
-      div.className='bg-slate-800 p-3 rounded flex justify-between items-center';
-      div.innerHTML=`
-        <div>${editMode?`<textarea class="w-full bg-transparent resize-none" rows="2">${a}</textarea>`:a}<div class="text-xs text-slate-400 mt-1">Сколько раз сегодня: ${count}</div></div>
-        <div class="flex flex-col gap-1">
-          <button class="bg-emerald-500 hover:bg-emerald-600 rounded-full w-12 h-12 font-bold">✅</button>
-          <button class="px-2 py-1 bg-slate-600 rounded text-xs">▶</button>
-        </div>
-      `;
-      div.querySelector('button').onclick = ()=>increment(i);
-      div.querySelectorAll('button')[1].onclick=()=>quickSpeak(a);
-      if(editMode) div.querySelector('textarea').oninput=(e)=>{affirmations[i]=e.target.value; saveJSON(STORAGE_KEYS.AFF,affirmations);}
-      container.appendChild(div);
-    });
-  }
+document.getElementById('add-ritual-line').onclick = () => {
+  const input = document.getElementById('new-ritual-line');
+  const val = input.value.trim();
+  if(val) { ritualText.push(val); input.value=''; renderRitualText(); }
+};
 
-  function renderProgress(){
-    const t = todayKey();
-    const todaySum=(history[t]||[0,0,0]).reduce((a,b)=>a+b,0);
-    document.getElementById('today-count').textContent=`Сегодня повторов: ${todaySum}`;
+document.getElementById('save-ritual').onclick = () => {
+  localStorage.setItem(STORAGE_KEYS.RITUAL, JSON.stringify(ritualText));
+  alert('Ритуал сохранён!');
+};
 
-    const chart = document.getElementById('mini-bar-chart'); chart.innerHTML='';
-    for(let i=29;i>=0;i--){
-      const d=new Date(); d.setDate(d.getDate()-i);
-      const key=d.toISOString().slice(0,10);
-      const sum=(history[key]||[0,0,0]).reduce((a,b)=>a+b,0);
-      const h=Math.max(4,Math.min(sum*20,100));
-      const bar=document.createElement('div'); bar.className='flex-1 rounded bg-emerald-400/80'; bar.style.height=h+'%'; bar.title=`${key}: ${sum}`;
-      chart.appendChild(bar);
-    }
+document.getElementById('open-ritual').onclick = () => { document.getElementById('ritual-modal').classList.remove('hidden'); renderRitualText(); };
+document.getElementById('close-ritual').onclick = () => document.getElementById('ritual-modal').classList.add('hidden');
 
-    // стрик
-    let streak=0;
-    for(let i=0;i<30;i++){
-      const d=new Date(); d.setDate(d.getDate()-i);
-      const key=d.toISOString().slice(0,10);
-      const sum=(history[key]||[0,0,0]).reduce((a,b)=>a+b,0);
-      if(sum>0) streak++; else break;
-    }
-    document.getElementById('streak').textContent=`Стрик: ${streak} дн.`;
-  }
+// ====== Слайд ======
+const slideContainer = document.getElementById('ritual-slide');
+const slideData = localStorage.getItem(STORAGE_KEYS.SLIDE);
+if(slideData) {
+  const img = document.createElement('img');
+  img.src = slideData;
+  img.className = 'w-full rounded mt-2';
+  slideContainer.appendChild(img);
+}
 
-  function renderSlide(){
-    const container=document.getElementById('slide-container'); container.innerHTML='';
-    if(slideImage){
-      const img=document.createElement('img'); img.src=slideImage; img.className='max-h-40 rounded shadow';
-      container.appendChild(img);
-    }
-  }
-
-  // -------------------
-  // Слайд/файл
-  // -------------------
-  document.getElementById('slide-upload').onchange=(e)=>{
-    const file=e.target.files[0]; if(!file) return;
-    const reader=new FileReader();
-    reader.onload=(ev)=>{slideImage=ev.target.result; saveJSON(STORAGE_KEYS.SLIDE,slideImage); renderSlide();}
+document.getElementById('upload-slide').onchange = (e) => {
+  const file = e.target.files[0];
+  if(file) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      slideContainer.innerHTML='';
+      const img = document.createElement('img');
+      img.src = ev.target.result;
+      img.className='w-full rounded mt-2';
+      slideContainer.appendChild(img);
+      localStorage.setItem(STORAGE_KEYS.SLIDE, ev.target.result);
+    };
     reader.readAsDataURL(file);
   }
-  document.getElementById('load-slide').onclick=()=>{slideImage=loadJSON(STORAGE_KEYS.SLIDE,null); renderSlide();}
-  document.getElementById('clear-slide').onclick=()=>{slideImage=null; localStorage.removeItem(STORAGE_KEYS.SLIDE); renderSlide();}
+};
 
-  // -------------------
-  // Ритуал
-  // -------------------
-  document.getElementById('open-ritual').onclick=()=>{
-    document.getElementById('ritual-modal').classList.remove('hidden');
-    document.getElementById('ritual-slide').innerHTML=slideImage?`<img src="${slideImage}" class="max-h-28 rounded mx-auto">`:'[Слайд не установлен]';
-    document.getElementById('ritual-text').innerHTML=affirmations.map(a=>`<p>${a}</p>`).join('');
-  }
-  document.getElementById('close-ritual').onclick=()=>document.getElementById('ritual-modal').classList.add('hidden');
+document.getElementById('clear-slide').onclick = () => {
+  slideContainer.innerHTML='';
+  localStorage.removeItem(STORAGE_KEYS.SLIDE);
+};
 
-  // -------------------
-  // Кнопки управления
-  // -------------------
-  document.getElementById('edit-toggle').onclick=()=>{editMode=!editMode; renderAffirmations();}
-  document.getElementById('reset-day').onclick=resetToday;
-  document.getElementById('reset-all').onclick=resetAll;
-  document.getElementById('export-history').onclick=exportHistory;
+// ====== Быстрый ритуал ======
+document.getElementById('quick-ritual').onclick = () => {
+  if(ritualText.length===0) { alert('Добавьте фразы в ритуал!'); return; }
+  alert('Начинаем ритуал:\n\n' + ritualText.join('\n'));
+};
 
-  // -------------------
-  // Инициализация
-  // -------------------
+// ====== Сброс дня ======
+document.getElementById('reset-day').onclick = () => {
+  history[todayKey] = Array(affirmations.length).fill(0);
+  localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
   renderAffirmations();
-  renderProgress();
-  renderSlide();
+};
+
+// ====== Статистика ======
+function updateStats() {
+  const todaySum = history[todayKey]?.reduce((a,b)=>a+b,0) || 0;
+  document.getElementById('today-count').innerText = todaySum + ' повторов';
+
+  const streak = Object.keys(history).filter(k => history[k].some(v=>v>0)).length;
+  document.getElementById('streak-count').innerText = streak + ' дн.';
+}
+updateStats();
 </script>
 
 </body>
