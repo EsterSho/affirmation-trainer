@@ -2,138 +2,219 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <title>Тренажёр утверждений</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Affirmations Trainer</title>
+  <style>
+    body { font-family: sans-serif; margin:0; padding:1rem; background:#f8f9fa; }
+    h2 { margin-top:1rem; }
+    .affirmation { display:flex; align-items:center; justify-content:space-between; padding:0.5rem; margin:0.25rem 0; background:#fff; border-radius:0.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+    .text { flex:1; margin-right:0.5rem; }
+    .count { font-size:0.8rem; color:#555; }
+    button { padding:0.5rem 0.75rem; border:none; border-radius:0.5rem; cursor:pointer; }
+    .btn-green { background:#38c172; color:#fff; font-size:1.2rem; }
+    .btn-red { background:#e3342f; color:#fff; }
+    .btn-blue { background:#3490dc; color:#fff; }
+    .stats { margin-top:1rem; padding:0.75rem; background:#fff; border-radius:0.5rem; box-shadow:0 1px 3px rgba(0,0,0,0.1); text-align:center; }
+    .modal { position:fixed; top:0; left:0; width:100%; height:100%; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); }
+    .modal-content { background:#fff; padding:1rem; border-radius:0.75rem; max-width:90%; max-height:90%; overflow-y:auto; }
+    canvas { width:100%; max-width:100%; height:200px; }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen p-4">
+<body>
 
-<div class="max-w-3xl mx-auto">
-  <header class="mb-4">
-    <h1 class="text-2xl font-bold">Тренажёр утверждений</h1>
-    <p class="text-sm text-slate-300">Сохраняется оффлайн · ритуал силы</p>
-  </header>
+<h2>Закреплённые утверждения</h2>
+<div id="permanent"></div>
 
-  <section class="bg-slate-700 p-4 rounded mb-4">
-    <h2 class="font-semibold mb-2">Твои 3 утверждения</h2>
-    <div id="affirmations-list" class="space-y-3"></div>
-    <div class="mt-3 flex gap-2">
-      <button id="reset-day" class="bg-slate-600 px-3 py-2 rounded">Сброс дня</button>
-      <button id="reset-all" class="bg-red-600 px-3 py-2 rounded">Сброс всех утверждений</button>
-    </div>
-  </section>
+<h2>Мои утверждения</h2>
+<div id="editable"></div>
+<button id="add">➕ Добавить утверждение</button>
 
-  <section class="bg-slate-700 p-4 rounded">
-    <h2 class="font-semibold mb-2">Прогресс</h2>
-    <div id="today-count" class="text-lg font-bold mb-2"></div>
-    <div class="h-24 flex items-end gap-1" id="mini-bar-chart"></div>
-  </section>
+<div class="stats">
+  <div id="streak"></div>
+  <div id="today"></div>
+</div>
+
+<h2>Ритуал</h2>
+<button id="open-ritual" class="btn-blue">Открыть ритуал</button>
+<input type="file" id="upload-slide" accept="image/*">
+<button id="clear-slide" class="btn-red">Очистить слайд</button>
+
+<!-- График прогресса -->
+<h2>Прогресс</h2>
+<canvas id="progressChart"></canvas>
+
+<!-- Ритуал -->
+<div id="ritual-modal" class="modal">
+  <div class="modal-content">
+    <h3>Мой ритуал</h3>
+    <div id="ritual-slide"></div>
+    <div id="ritual-editor"></div>
+    <button id="save-ritual" class="btn-blue">Сохранить</button>
+    <button id="close-ritual" class="btn-red">Закрыть</button>
+  </div>
 </div>
 
 <script>
-  const STORAGE_KEYS = {
-    AFF: 'affirmations_v1',
-    HISTORY: 'affirmations_history_v1'
-  };
+const STORAGE_KEYS = {
+  PERMANENT: 'affirm_permanent',
+  EDITABLE: 'affirm_editable',
+  HISTORY: 'affirm_history',
+  RITUAL: 'ritual_text',
+  SLIDE: 'ritual_slide'
+};
 
-  const DEFAULT_AFFIRMATIONS = [
-    "Моё тело обновляется и исцеляется. Я молод, силён и полон энергии.",
-    "Я живу в изобилии и любви Вселенной. Все ресурсы доступны мне.",
-    "Я люблю и ценю себя. Я готов к гармоничным отношениям в идеальное время."
-  ];
+const permanentAffirmations = ["Я силён", "Я любим", "Я справлюсь"];
+let editableAffirmations = JSON.parse(localStorage.getItem(STORAGE_KEYS.EDITABLE) || "[]");
+let history = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || "{}");
+let ritualText = JSON.parse(localStorage.getItem(STORAGE_KEYS.RITUAL) || '["Я благодарен за этот день"]');
 
-  function todayKey() {
-    return new Date().toISOString().slice(0,10);
+// ====== Дата ======
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+
+// ====== Сохранение ======
+function saveEditable(){ localStorage.setItem(STORAGE_KEYS.EDITABLE, JSON.stringify(editableAffirmations)); }
+function saveHistory(){ localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history)); }
+function saveRitual(){ localStorage.setItem(STORAGE_KEYS.RITUAL, JSON.stringify(ritualText)); }
+
+// ====== Рендер ======
+function renderPermanent(){
+  const cont = document.getElementById('permanent');
+  cont.innerHTML = '';
+  permanentAffirmations.forEach((txt,idx)=>{
+    const div = document.createElement('div');
+    div.className='affirmation';
+    const reps = (history[todayKey()]?.[idx]) || 0;
+    div.innerHTML = `<div class="text">${txt}<div class="count">${reps} раз</div></div>
+                     <button class="btn-green">✅</button>`;
+    div.querySelector('button').onclick = ()=>{
+      if(!history[todayKey()]) history[todayKey()] = [];
+      history[todayKey()][idx] = (history[todayKey()][idx]||0)+1;
+      saveHistory(); renderPermanent(); updateStats(); drawChart();
+    };
+    cont.appendChild(div);
+  });
+}
+
+function renderEditable(){
+  const cont = document.getElementById('editable');
+  cont.innerHTML = '';
+  editableAffirmations.forEach((txt,idx)=>{
+    const div = document.createElement('div');
+    div.className='affirmation';
+    const histIdx = permanentAffirmations.length+idx;
+    const reps = (history[todayKey()]?.[histIdx]) || 0;
+    div.innerHTML = `<div class="text"><input value="${txt}" style="width:80%"><div class="count">${reps} раз</div></div>
+                     <div><button class="btn-green">✅</button> <button class="btn-red">✖</button></div>`;
+    div.querySelector('input').onchange = (e)=>{ editableAffirmations[idx]=e.target.value; saveEditable(); };
+    div.querySelector('.btn-green').onclick = ()=>{
+      if(!history[todayKey()]) history[todayKey()] = [];
+      history[todayKey()][histIdx] = (history[todayKey()][histIdx]||0)+1;
+      saveHistory(); renderEditable(); updateStats(); drawChart();
+    };
+    div.querySelector('.btn-red').onclick = ()=>{
+      editableAffirmations.splice(idx,1); saveEditable(); renderEditable();
+    };
+    cont.appendChild(div);
+  });
+}
+
+document.getElementById('add').onclick = ()=>{ editableAffirmations.push("Новое утверждение"); saveEditable(); renderEditable(); };
+
+// ====== Статистика ======
+function updateStats(){
+  const today = history[todayKey()] || [];
+  const todayCount = today.reduce((a,b)=>a+(b||0),0);
+  document.getElementById('today').innerText = `Сегодня повторений: ${todayCount}`;
+  const dates = Object.keys(history).sort();
+  let streak = 0; let d=new Date();
+  while(dates.includes(d.toISOString().slice(0,10))){ streak++; d.setDate(d.getDate()-1);}
+  document.getElementById('streak').innerText = `Серия дней: ${streak}`;
+}
+
+// ====== Ритуал ======
+function renderRitual(){
+  const cont = document.getElementById('ritual-editor');
+  cont.innerHTML='';
+  ritualText.forEach((txt,idx)=>{
+    const div=document.createElement('div');
+    div.innerHTML=`<input value="${txt}" style="width:80%"> <button data-idx="${idx}" class="btn-red">✖</button>`;
+    div.querySelector('input').onchange = (e)=>{ ritualText[idx]=e.target.value; };
+    div.querySelector('button').onclick = ()=>{ ritualText.splice(idx,1); renderRitual(); };
+    cont.appendChild(div);
+  });
+  const addBtn=document.createElement('button');
+  addBtn.innerText="Добавить строку";
+  addBtn.className="btn-blue";
+  addBtn.onclick=()=>{ ritualText.push("Новое"); renderRitual(); };
+  cont.appendChild(addBtn);
+}
+document.getElementById('save-ritual').onclick=()=>{ saveRitual(); alert('Ритуал сохранён!'); };
+document.getElementById('open-ritual').onclick=()=>{
+  document.getElementById('ritual-modal').style.display='flex'; renderRitual();
+  const slide = localStorage.getItem(STORAGE_KEYS.SLIDE);
+  if(slide) document.getElementById('ritual-slide').innerHTML = `<img src="${slide}" style="max-width:100%">`;
+};
+document.getElementById('close-ritual').onclick=()=>{ document.getElementById('ritual-modal').style.display='none'; };
+
+// ====== Слайд ======
+document.getElementById('upload-slide').onchange = (e)=>{
+  const file = e.target.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = (evt)=>{
+      localStorage.setItem(STORAGE_KEYS.SLIDE, evt.target.result);
+      document.getElementById('ritual-slide').innerHTML = `<img src="${evt.target.result}" style="max-width:100%">`;
+    };
+    reader.readAsDataURL(file);
   }
+};
+document.getElementById('clear-slide').onclick=()=>{
+  localStorage.removeItem(STORAGE_KEYS.SLIDE);
+  document.getElementById('ritual-slide').innerHTML='';
+};
 
-  function loadJSON(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch {
-      return fallback;
-    }
+// ====== График прогресса ======
+function drawChart(){
+  const canvas=document.getElementById('progressChart');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const days=14;
+  let dates=[];
+  for(let i=days-1;i>=0;i--){
+    let d=new Date(); d.setDate(d.getDate()-i);
+    dates.push(d.toISOString().slice(0,10));
   }
+  const values=dates.map(k=>(history[k]?.reduce((a,b)=>a+(b||0),0))||0);
 
-  function saveJSON(key, data) {
-    localStorage.setItem(key, JSON.stringify(data));
-  }
+  const max=Math.max(...values,10);
+  const w=canvas.width, h=canvas.height;
+  const step=w/days;
 
-  let affirmations = loadJSON(STORAGE_KEYS.AFF, DEFAULT_AFFIRMATIONS);
-  let history = loadJSON(STORAGE_KEYS.HISTORY, {});
+  ctx.strokeStyle='#3490dc';
+  ctx.beginPath();
+  values.forEach((v,i)=>{
+    const x=i*step+step/2;
+    const y=h - (v/max*h);
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
 
-  function increment(idx) {
-    const t = todayKey();
-    if (!history[t]) history[t] = [0,0,0];
-    history[t][idx]++;
-    saveJSON(STORAGE_KEYS.HISTORY, history);
-    renderAffirmations();
-    renderProgress();
-  }
+  ctx.fillStyle='#38c172';
+  values.forEach((v,i)=>{
+    const x=i*step+step/2;
+    const y=h - (v/max*h);
+    ctx.beginPath();
+    ctx.arc(x,y,3,0,Math.PI*2);
+    ctx.fill();
+  });
+}
 
-  function resetToday() {
-    const t = todayKey();
-    history[t] = [0,0,0];
-    saveJSON(STORAGE_KEYS.HISTORY, history);
-    renderAffirmations();
-    renderProgress();
-  }
-
-  function resetAll() {
-    localStorage.removeItem(STORAGE_KEYS.AFF);
-    localStorage.removeItem(STORAGE_KEYS.HISTORY);
-    affirmations = [...DEFAULT_AFFIRMATIONS];
-    history = {};
-    renderAffirmations();
-    renderProgress();
-  }
-
-  function renderAffirmations() {
-    const container = document.getElementById('affirmations-list');
-    container.innerHTML = '';
-    const t = todayKey();
-    affirmations.forEach((text, idx) => {
-      const count = (history[t] || [0,0,0])[idx] || 0;
-      const div = document.createElement('div');
-      div.className = 'bg-slate-800 p-3 rounded flex justify-between items-center';
-      div.innerHTML = `
-        <div>${text}<div class="text-xs text-slate-400 mt-1">Сколько раз сегодня: ${count}</div></div>
-        <button class="bg-emerald-500 hover:bg-emerald-600 rounded-full w-12 h-12 font-bold">✅</button>
-      `;
-      div.querySelector('button').onclick = () => increment(idx);
-      container.appendChild(div);
-    });
-  }
-
-  function renderProgress() {
-    const t = todayKey();
-    const todaySum = (history[t] || [0,0,0]).reduce((a,b)=>a+b,0);
-    document.getElementById('today-count').textContent = `Сегодня повторов: ${todaySum}`;
-
-    // mini-bar-chart
-    const chart = document.getElementById('mini-bar-chart');
-    chart.innerHTML = '';
-    for (let i=29;i>=0;i--) {
-      const d = new Date();
-      d.setDate(d.getDate()-i);
-      const key = d.toISOString().slice(0,10);
-      const sum = (history[key] || [0,0,0]).reduce((a,b)=>a+b,0);
-      const max = 5; // max высота в процентах для простоты
-      const h = Math.max(4, Math.min(sum*20,100));
-      const bar = document.createElement('div');
-      bar.className = 'flex-1 rounded bg-emerald-400/80';
-      bar.style.height = h+'%';
-      bar.title = `${key}: ${sum}`;
-      chart.appendChild(bar);
-    }
-  }
-
-  document.getElementById('reset-day').onclick = resetToday;
-  document.getElementById('reset-all').onclick = resetAll;
-
-  renderAffirmations();
-  renderProgress();
+// ====== Init ======
+renderPermanent();
+renderEditable();
+updateStats();
+drawChart();
 </script>
-
 </body>
 </html>
