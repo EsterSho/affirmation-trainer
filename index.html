@@ -70,7 +70,7 @@
             const [showRitual, setShowRitual] = useState(false);
             const [showHelp, setShowHelp] = useState(false);
             const [editMode, setEditMode] = useState(false);
-            const [slideImage, setSlideImage] = useState(null);
+            const [slideImage, setSlideImage] = useState(() => loadJSON('slide_image_data', null));
 
             const synthRef = useRef(window.speechSynthesis);
             const recordingRef = useRef(null);
@@ -390,7 +390,8 @@
                 </div>
             );
         }
-
+        
+        // ВНИМАНИЕ: это правильный способ вызова компонента без сборки
         ReactDOM.render(React.createElement(AffirmationTrainer), document.getElementById('root'));
     </script>
 </body>
