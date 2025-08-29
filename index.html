@@ -273,49 +273,28 @@ document.getElementById('reset-day').onclick = ()=>{
 // ====== График прогресса ======
 let chart;
 
-function formatDate(date) {
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-}
-function storageKey(date) {
-  return date.toLocaleDateString("ru-RU");
-}
+function renderChart() {
+  const ctx = document.getElementById('progressChart').getContext('2d');
 
-// последние 7 дней
-function getLast7Days() {
-  let days = [];
-  for (let i = 6; i >= 0; i--) {
-    let d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d);
-  }
-  return days;
-}
+  const labels = Object.keys(history).sort(); // даты
+  const data = labels.map(k => (history[k] || []).reduce((a, b) => a + b, 0)); // повторы за день
 
-function renderChart(){
-  const ctx = document.getElementById("progressChart").getContext("2d");
-  const last7 = getLast7Days();
+  if (chart) chart.destroy();
 
-  // собираем данные за последние 7 дней
-  const labels = last7.map(d => formatDate(d));
-  const data = last7.map(d => {
-    let key = storageKey(d);
-    return (history[key] || []).reduce((a,b)=>a+b,0);
-  });
-
-  if(chart) chart.destroy();
   chart = new Chart(ctx, {
-    type: "line",
+    type: 'line',
     data: {
       labels,
       datasets: [{
-        label: "Повторы за день",
+        label: 'Повторы в день',
         data,
-        borderColor: "#16a34a",
-        backgroundColor: "#16a34a55",
-        fill: true,
-        tension: 0.3,
-        pointBackgroundColor: "#15803d",
-        pointRadius: 5
+        borderColor: '#16a34a',
+        backgroundColor: '#16a34a55',
+        fill: false,               // убрал заливку, оставляем чистую линию
+        tension: 0,                // 0 = прямая линия между точками
+        pointRadius: 6,            // размер точек
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#22c55e'
       }]
     },
     options: {
@@ -324,14 +303,21 @@ function renderChart(){
       scales: {
         y: {
           beginAtZero: true,
+          ticks: {
+            stepSize: 1            // шаг = 1, чтобы видно каждый рост
+          },
           title: { display: true, text: "Повторы" }
         },
         x: {
-          title: { display: true, text: "Последние 7 дней" }
+          title: { display: true, text: "Дни" }
         }
+      },
+      plugins: {
+        legend: { display: false }
       }
     }
   });
+}
 
   updateStats();
 }
@@ -372,6 +358,7 @@ renderChart();
 </script>
 </body>
 </html>
+
 
 
 
