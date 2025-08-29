@@ -345,55 +345,6 @@ function getLast7Days() {
   return days;
 }
 
-function renderChart() {
-  const ctx = document.getElementById("progressChart").getContext("2d");
-  const last7 = getLast7Days();
-
-  // собираем данные за последние 7 дней
-  const labels = last7.map(d => formatDate(d));
-  const data = last7.map(d => {
-    let key = storageKey(d);
-    return (history[key] || []).reduce((a, b) => a + b, 0);
-  });
-
-  if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "Повторы за день",
-        data,
-        borderColor: "#16a34a",
-        backgroundColor: "#16a34a55",
-        fill: false,                // ❌ убираем заливку, оставляем только линию
-        tension: 0,                 // ❌ делаем прямые линии
-        pointBackgroundColor: "#22c55e", // точки зелёные
-        pointRadius: 6,             // точки крупнее
-        pointHoverRadius: 8         // при наведении — ещё больше
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: {
-          beginAtZero: true,
-          ticks: {
-            stepSize: 1            // 👉 шаг 1, видно каждый рост
-          },
-          title: { display: true, text: "Повторы" }
-        },
-        x: {
-          title: { display: true, text: "Последние 7 дней" }
-        }
-      },
-      plugins: {
-        legend: { display: false }
-      }
-    }
-  });
-
   updateStats();
 }
 
@@ -434,6 +385,7 @@ renderChart();
 </script>
 </body>
 </html>
+
 
 
 
