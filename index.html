@@ -146,6 +146,60 @@ function renderPermanent(){
   });
 }
 
+function renderChart() {
+  const ctx = document.getElementById("progressChart").getContext("2d");
+  const last7 = getLast7Days();
+
+  // метки = дни недели
+  const labels = last7.map(d => d.toLocaleDateString("ru-RU", { weekday: "short" }));
+
+  // данные = повторы за день
+  const data = last7.map(d => {
+    let key = storageKey(d);
+    return (history[key] || []).reduce((a, b) => a + b, 0);
+  });
+
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Повторы за день",
+        data,
+        borderColor: "#16a34a",
+        backgroundColor: "#16a34a55",
+        fill: false,
+        tension: 0,                 // прямая линия
+        pointBackgroundColor: "#22c55e",
+        pointRadius: 6,
+        pointHoverRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1             // шаг = 1, видны все значения
+          },
+          title: { display: true, text: "Повторы" }
+        },
+        x: {
+          title: { display: true, text: "Дни недели" }
+        }
+      },
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+
+  updateStats();
+}
+
 // ====== Редактируемые утверждения ======
 let editableAffirmations = JSON.parse(localStorage.getItem(STORAGE_KEYS.AFF)||'[]');
 function renderEditable(){
@@ -380,6 +434,7 @@ renderChart();
 </script>
 </body>
 </html>
+
 
 
 
